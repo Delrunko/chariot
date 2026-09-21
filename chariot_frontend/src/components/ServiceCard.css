@@ -1,0 +1,147 @@
+/* ============================================
+   CORRECTION MOBILE : ORDRE VERTICAL PROPRE
+   ============================================ */
+@media (max-width: 600px) {
+  
+  /* Reset complet de la grille sur mobile */
+  .book-detail,
+  .service-detail {
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 1rem !important;
+    gap: 1.5rem !important;
+    max-width: 100% !important;
+  }
+
+  /* Force l'ordre : visuels d'abord, infos ensuite */
+  .detail-visuals {
+    order: 1 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+  }
+
+  .detail-info {
+    order: 2 !important;
+    width: 100% !important;
+    position: static !important; /* Désactive le sticky */
+  }
+
+  /* Image principale : grande, centrée, bien proportionnée */
+  .main-and-badge {
+    width: 100% !important;
+    max-width: 100% !important;
+    aspect-ratio: 4 / 3 !important; /* Format paysage pour mobile */
+    margin: 0 !important;
+    border-radius: 12px !important;
+    overflow: hidden !important;
+  }
+
+  .gallery-main-img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 12px !important;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15) !important;
+    /* Désactive l'effet 3D sur mobile */
+    transform: none !important;
+  }
+
+  /* Miniatures : scroll horizontal propre */
+  .thumbnails {
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: flex-start !important;
+    padding: 0.75rem 0 !important;
+  }
+
+  .thumb-btn {
+    flex: 0 0 65px !important;
+    width: 65px !important;
+    height: 50px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Carte d'info : propre et aérée */
+  .purchase-card {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.75rem !important;
+  }
+
+  /* Catégorie : petit badge discret */
+  .detail-category {
+    font-size: 0.7rem !important;
+    padding: 4px 10px !important;
+    align-self: flex-start !important;
+  }
+
+  /* Titre : bien lisible */
+  .detail-title {
+    font-size: 1.5rem !important;
+    line-height: 1.25 !important;
+    margin: 0 !important;
+    word-break: break-word !important;
+  }
+
+  /* Prix : bien visible */
+  .detail-price {
+    font-size: 1.4rem !important;
+    margin: 0.5rem 0 !important;
+  }
+
+  .detail-price::before {
+    width: 24px !important;
+  }
+
+  /* Description : texte lisible */
+  .detail-description {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    margin: 0.5rem 0 1rem 0 !important;
+    color: #555 !important;
+  }
+
+  /* Bouton d'action : PLEINE LARGEUR, bien visible */
+  .btn-primary {
+    width: 100% !important;
+    padding: 1rem !important;
+    font-size: 1rem !important;
+    border-radius: 12px !important;
+    margin-top: 0.5rem !important;
+    /* Optionnel : bouton fixe en bas de l'écran */
+    /* position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 100 !important;
+    border-radius: 0 !important;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.1) !important; */
+  }
+
+  /* Si vous activez le bouton fixe en bas, ajoutez du padding au body */
+  /* body {
+    padding-bottom: 80px !important;
+  } */
+}
+
+/* Très petits écrans (iPhone SE, etc.) */
+@media (max-width: 380px) {
+  .detail-title {
+    font-size: 1.3rem !important;
+  }
+  
+  .detail-price {
+    font-size: 1.2rem !important;
+  }
+  
+  .main-and-badge {
+    aspect-ratio: 1 / 1 !important; /* Carré sur très petits écrans */
+  }
+}

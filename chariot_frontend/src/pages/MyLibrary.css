@@ -1,0 +1,401 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+.my-library {
+  --bg: #F6F7FB;
+  --surface: #FFFFFF;
+  --ink: #12141C;
+  --muted: #6B7280;
+  --line: #E7E9F0;
+  --primary: #16A34A;
+  --primary-dark: #0F7C39;
+  --danger: #E23D3D;
+  --danger-bg: #FDECEC;
+  --amber: #B7791F;
+  --amber-bg: #FBF3DE;
+  --green-bg: #E6F6EC;
+
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2.5rem 2rem 4rem;
+  font-family: 'Inter', sans-serif;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+/* ============================================
+   1. EN-TÊTE
+   ============================================ */
+.library-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.library-title {
+  font-weight: 800;
+  font-size: 1.85rem;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.connection-status {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+.connection-status::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.connection-status.online { color: var(--primary-dark); background: var(--green-bg); }
+.connection-status.online::before { background: var(--primary); }
+.connection-status.offline { color: var(--danger); background: var(--danger-bg); }
+.connection-status.offline::before { background: var(--danger); }
+
+/* ============================================
+   2. CARTE COMPTE
+   ============================================ */
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.05), 0 8px 24px rgba(16,24,40,0.06);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 2.5rem;
+}
+
+.account-avatar {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+}
+
+.account-avatar-icon {
+  width: 26px;
+  height: 26px;
+}
+
+.account-identity {
+  flex: 1;
+  min-width: 160px;
+}
+
+.account-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.account-email,
+.account-role {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.account-stats {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.account-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 0.6rem 1.1rem;
+  min-width: 84px;
+}
+
+.account-stat-value {
+  font-weight: 800;
+  font-size: 1.35rem;
+  color: var(--ink);
+}
+
+.account-stat-label {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ============================================
+   3. SECTIONS
+   ============================================ */
+.library-section {
+  margin-bottom: 3rem;
+}
+
+.section-title {
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin: 0 0 1.1rem 0;
+}
+
+.library-loading,
+.library-empty {
+  color: var(--muted);
+}
+
+.library-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+}
+
+/* ============================================
+   4. ACHATS DE SERVICES — cartes de liste
+   ============================================ */
+.service-purchase-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.service-purchase-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 1rem;
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.05), 0 4px 14px rgba(16,24,40,0.05);
+  padding: 0.85rem 1.1rem;
+  position: relative;
+}
+
+.service-purchase-cover img {
+  width: 64px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.service-purchase-cover-empty {
+  width: 64px;
+  height: 48px;
+  background: var(--bg);
+  border-radius: 10px;
+}
+
+.service-purchase-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.service-purchase-date {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.service-purchase-status {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.status-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 999px;
+}
+.status-paid { color: var(--primary-dark); background: var(--green-bg); }
+.status-pending { color: var(--amber); background: var(--amber-bg); }
+.status-default { color: var(--muted); background: var(--bg); }
+
+.service-purchase-inline-video {
+  grid-column: 1 / -1;
+  margin-top: 0.5rem;
+}
+
+.inline-video-frame-wrap {
+  position: relative;
+  padding-bottom: 56.25%;
+  height: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.inline-video-frame-wrap iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.service-purchase-inline-video video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  background: #000;
+}
+
+/* ============================================
+   5. GRILLE LIVRES — cartes modernes
+   ============================================ */
+.my-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1.25rem;
+}
+
+.book-card {
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(16,24,40,0.05), 0 8px 20px rgba(16,24,40,0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.book-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 4px 8px rgba(16,24,40,0.06), 0 14px 28px rgba(16,24,40,0.1);
+}
+
+.book-card-cover-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+}
+
+.book-card-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.book-card-delete {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.92);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(16,24,40,0.18);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.book-card-delete:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+  transform: scale(1.06);
+}
+.book-card-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.book-card-body {
+  padding: 0.9rem 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  flex: 1;
+}
+
+.book-card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.revalidate-warning {
+  color: var(--amber);
+  font-size: 0.78rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+/* ============================================
+   6. BOUTONS
+   ============================================ */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.1rem;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+.btn-primary:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-outline:hover:not(:disabled) { background: var(--bg); border-color: #D0D4E0; }
+.btn-outline:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============================================
+   7. RESPONSIVE
+   ============================================ */
+@media (max-width: 640px) {
+  .my-library { padding: 2rem 1.25rem 3rem; }
+  .account-card { flex-wrap: wrap; border-radius: 16px; }
+  .account-stats { width: 100%; justify-content: space-between; }
+  .account-stat { flex: 1; }
+  .service-purchase-row {
+    grid-template-columns: 48px 1fr;
+  }
+  .service-purchase-status {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+    padding-top: 0.5rem;
+  }
+  .my-library-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  }
+}

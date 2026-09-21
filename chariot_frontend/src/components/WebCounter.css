@@ -1,0 +1,12 @@
+.web-counter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 0.85rem;
+}
+
+.web-counter-number {
+  font-weight: 800;
+  color: var(--gold, #d4af37);
+}

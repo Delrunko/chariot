@@ -1,0 +1,88 @@
+.restricted-video-wrapper {
+  position: relative;
+  width: 100%;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden;
+  user-select: none;
+}
+
+.restricted-video-element {
+  display: block;
+  width: 100%;
+  max-height: 70vh;
+  background: #000;
+  cursor: pointer;
+}
+
+/* Bandeau défilant : nom de l'app + client + numéro, en boucle continue */
+.restricted-video-marquee {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 44px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 4px 0;
+}
+
+.restricted-video-marquee span {
+  display: inline-block;
+  white-space: nowrap;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  animation: restricted-video-scroll 18s linear infinite;
+  padding-left: 100%;
+}
+
+@keyframes restricted-video-scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.restricted-video-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.restricted-video-btn {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.restricted-video-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.restricted-video-time {
+  color: #fff;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: center;
+}
+
+.restricted-video-progress {
+  flex: 1;
+  accent-color: var(--gold, #d4a017);
+}
+
+.restricted-video-volume {
+  width: 70px;
+  accent-color: var(--gold, #d4a017);
+}

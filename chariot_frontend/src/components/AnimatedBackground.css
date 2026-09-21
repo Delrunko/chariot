@@ -1,0 +1,59 @@
+.animated-background-wrapper {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.animated-background-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Halos lumineux flous qui dérivent lentement en arrière-plan, pour donner
+   de la profondeur derrière les particules. */
+.animated-background-glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.25;
+}
+
+.animated-background-glow-1 {
+  width: 420px;
+  height: 420px;
+  background: radial-gradient(circle, rgba(212, 175, 55, 0.55), transparent 70%);
+  top: -10%;
+  left: -8%;
+  animation: animated-background-drift-1 22s ease-in-out infinite alternate;
+}
+
+.animated-background-glow-2 {
+  width: 360px;
+  height: 360px;
+  background: radial-gradient(circle, rgba(200, 40, 40, 0.4), transparent 70%);
+  bottom: -12%;
+  right: -6%;
+  animation: animated-background-drift-2 26s ease-in-out infinite alternate;
+}
+
+@keyframes animated-background-drift-1 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(60px, 40px) scale(1.15);
+  }
+}
+
+@keyframes animated-background-drift-2 {
+  0% {
+    transform: translate(0, 0) scale(1);
+  }
+  100% {
+    transform: translate(-50px, -30px) scale(1.1);
+  }
+}

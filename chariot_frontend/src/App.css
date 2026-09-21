@@ -1,0 +1,170 @@
+:root {
+  /* --- Couleurs : identité "chantier" du client (gilet de sécurité, affiches DAS) --- */
+  --navy: #1c1712;       /* fond sombre principal (brun-noir, pas bleu académique) */
+  --navy-light: #2a221b;
+  --navy-deep: #0f0c09;
+  --gold: #c3272b;       /* rouge chantier — accent principal */
+  --gold-light: #e5484d;
+  --safety: #d3e000;     /* jaune sécurité (gilet fluo) — accent secondaire, signature */
+  --safety-deep: #a8b300;
+  --ivory: #f6f1e4;      /* papier chaud */
+  --ink: #1a1a1a;
+  --ink-muted: #6b625a;
+  --line: #e6ddc9;
+  --white: #ffffff;
+
+  /* --- Typographie --- */
+  --font-display: "Anton", "Arial Narrow", sans-serif;
+  --font-body: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  /* --- Rythme --- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+  --shadow-soft: 0 10px 30px rgba(15, 12, 9, 0.18);
+  --shadow-card: 0 6px 18px rgba(15, 12, 9, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  background: var(--ivory);
+  color: var(--ink);
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  color: var(--navy);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+a {
+  color: inherit;
+}
+
+main {
+  min-height: calc(100vh - 320px);
+}
+
+.app-loading {
+  display: grid;
+  place-items: center;
+  min-height: 40vh;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  padding: 0.85rem 1.7rem;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: var(--gold-light);
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--navy);
+  border: 2px solid var(--navy);
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-outline:hover {
+  background: var(--navy);
+  color: #fff;
+}
+
+/* Ruban rouge "déchiré" — repris des vraies couvertures du client */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-body);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #fff;
+  font-weight: 700;
+  background: var(--gold);
+  padding: 0.35rem 0.9rem 0.35rem 0.7rem;
+  clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%);
+}
+
+.eyebrow-light {
+  background: transparent;
+  color: var(--gold);
+  padding: 0;
+  clip-path: none;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease both;
+}
+
+@keyframes page-fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(36px) scale(0.98);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.page-transition-enter {
+  animation: page-fade-slide-in 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}

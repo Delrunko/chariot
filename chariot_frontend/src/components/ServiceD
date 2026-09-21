@@ -1,0 +1,78 @@
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { catalogService } from "../services/api";
+import "./BookDetail.css";
+import "./ServiceDetail.css";
+
+const WHATSAPP_NUMBER = "237656877046";
+
+function buildWhatsappUrl(titre) {
+  const message = `Bonjour, je suis intéressé(e) par le service : ${titre}`;
+  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+}
+
+export default function ServiceDetail() {
+  const { slug } = useParams();
+  const [service, setService] = useState(null);
+  const [imageActive, setImageActive] = useState(0);
+
+  useEffect(() => {
+    setService(null);
+    setImageActive(0);
+
+    catalogService
+      .getBook(slug)
+      .then(({ data }) => setService(data))
+      .catch(() => setService(false));
+  }, [slug]);
+
+  if (service === null) return <p className="book-detail-loading">Chargement…</p>;
+  if (service === false) return <p className="book-detail-loading">Service introuvable.</p>;
+
+  const galerie = [
+    { id: "couverture", image: service.couverture },
+    ...(service.images || []),
+  ];
+
+  return (
+    <div className="book-detail service-detail">
+      <div className="service-detail-gallery">
+        <img
+          src={galerie[imageActive]?.image}
+          alt={service.titre}
+          className="book-detail-cover"
+        />
+        {galerie.length > 1 && (
+          <div className="service-detail-thumbs">
+            {galerie.map((img, index) => (
+              <button
+                key={img.id}
+                type="button"
+                className={`service-detail-thumb ${index === imageActive ? "active" : ""}`}
+                onClick={() => setImageActive(index)}
+              >
+                <img src={img.image} alt={`${service.titre} ${index + 1}`} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="book-detail-info">
+        <span className="book-detail-category">{service.sous_categorie}</span>
+        <h1>{service.titre}</h1>
+        <p>{service.description}</p>
+        {service.prix > 0 && (
+          <p className="book-detail-price">{Number(service.prix).toLocaleString("fr-FR")} FCFA</p>
+        )}
+
+        <button
+          className="btn-primary service-detail-demander"
+          onClick={() => window.open(buildWhatsappUrl(service.titre), "_blank", "noopener,noreferrer")}
+        >
+          💬 Demander sur WhatsApp
+        </button>
+      </div>
+    </div>
+  );
+}

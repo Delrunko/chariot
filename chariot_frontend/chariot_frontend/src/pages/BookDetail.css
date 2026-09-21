@@ -1,0 +1,47 @@
+.book-detail {
+  display: flex;
+  gap: 2rem;
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.book-detail-cover {
+  width: 260px;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  object-fit: cover;
+}
+
+.book-detail-category {
+  color: #b08d57;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+
+.book-detail-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1f3864;
+  margin: 1rem 0;
+}
+
+.btn-primary {
+  background: #1f3864;
+  color: #fff;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.book-detail-error {
+  color: #c0392b;
+}

@@ -1,0 +1,90 @@
+.footer {
+  background: var(--navy-deep);
+  color: #cfc6b8;
+  margin-top: 4rem;
+  border-top: 3px solid var(--gold);
+}
+
+.footer-top {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 2.5rem 2rem;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 2rem;
+}
+
+.footer-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: #fff;
+  text-decoration: none;
+  margin-bottom: 0.75rem;
+}
+
+.footer-logo-img {
+  display: block;
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.footer-brand-name {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.03em;
+  color: #fff;
+}
+
+.footer-brand p {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #a99e8e;
+  max-width: 320px;
+}
+
+.footer-col h4 {
+  color: var(--safety);
+  font-family: var(--font-body);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.9rem;
+  font-weight: 700;
+}
+
+.footer-col a {
+  display: block;
+  color: #cfc6b8;
+  text-decoration: none;
+  font-size: 0.9rem;
+  margin-bottom: 0.6rem;
+  transition: color 0.15s ease;
+}
+
+.footer-col a:hover {
+  color: var(--gold-light);
+}
+
+.footer-payment {
+  font-size: 0.9rem;
+  color: #cfc6b8;
+}
+
+.footer-bottom {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 1.1rem 2.5rem;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #766c5f;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 860px) {
+  .footer-top { grid-template-columns: 1fr 1fr; }
+  .footer-bottom { flex-direction: column; gap: 0.4rem; text-align: center; }
+}

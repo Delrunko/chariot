@@ -1,0 +1,759 @@
+.admin-page {
+  background: linear-gradient(180deg, #f8f4ee 0%, #f2ecdf 100%);
+  min-height: calc(100vh - 160px);
+  padding: 2rem 1.25rem 4rem;
+  overflow-x: hidden;
+}
+
+.admin-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.75rem 0 1rem;
+}
+
+.admin-header h1 {
+  margin: 0.5rem 0 0;
+  color: var(--navy);
+  font-size: clamp(1.6rem, 3vw, 3rem);
+}
+
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.admin-user-pill {
+  background: var(--navy);
+  color: #fff;
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.admin-alert {
+  margin-bottom: 1rem;
+  border-radius: 12px;
+  padding: 0.9rem 1rem;
+  font-weight: 700;
+}
+
+.admin-alert-success {
+  background: rgba(60, 179, 113, 0.12);
+  color: #1c4d32;
+}
+
+.admin-alert-error {
+  background: rgba(195, 39, 43, 0.12);
+  color: #7b1d1d;
+}
+
+.admin-loading {
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--ink-muted);
+  font-weight: 700;
+}
+
+/* Statistiques : espacement resserré, cartes plus compactes */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0 1.5rem;
+}
+
+.admin-stat-card {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  border-radius: 14px;
+  padding: 0.9rem 0.85rem;
+  color: #fff;
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+
+.admin-stat-card span {
+  display: block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.8;
+}
+
+.admin-stat-card strong {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: clamp(1.4rem, 2.6vw, 2rem);
+  color: var(--safety);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.admin-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+
+.admin-form-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.admin-card-wide {
+  grid-column: span 2;
+}
+
+.admin-card h2 {
+  margin: 0 0 0.85rem;
+  color: var(--navy);
+  font-size: 1.2rem;
+}
+
+.admin-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.85rem;
+  font-weight: 700;
+  color: var(--navy);
+  font-size: 0.92rem;
+}
+
+/* Correction du débordement : les champs prennent toute la largeur
+   disponible de leur conteneur, jamais plus (box-sizing inclus). */
+.admin-card input,
+.admin-card textarea,
+.admin-card select {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--ink);
+}
+
+.admin-card textarea {
+  resize: vertical;
+}
+
+.admin-book-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.admin-full-row {
+  grid-column: 1 / -1;
+}
+
+.admin-toggle {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.55rem !important;
+  min-height: 44px;
+}
+
+.admin-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-lists {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.admin-list-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 1rem;
+  box-shadow: var(--shadow-card);
+  min-width: 0;
+}
+
+.admin-list-card-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-list-card h2 {
+  margin: 0 0 0.85rem;
+  color: var(--navy);
+  font-size: 1.1rem;
+}
+
+.admin-list-card ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.admin-list-card li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  min-width: 0;
+}
+
+.admin-list-card li span {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-list-card li strong {
+  color: var(--gold);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.admin-purchase-row {
+  align-items: center;
+}
+
+.admin-purchase-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.admin-purchase-meta small {
+  color: var(--ink-muted);
+  font-size: 0.7rem;
+}
+
+.admin-purchase-actions select {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  color: var(--ink);
+  padding: 0.4rem 0.55rem;
+  font: inherit;
+}
+
+.admin-list-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.admin-mini-btn {
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 0.4rem 0.65rem;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.admin-mini-btn-edit {
+  background: rgba(211, 224, 0, 0.18);
+  color: var(--navy);
+}
+
+.admin-mini-btn-delete {
+  background: rgba(195, 39, 43, 0.12);
+  color: var(--gold);
+}
+
+/* Small utility button styles */
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 0.45rem 0.7rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.btn-primary {
+  background: var(--safety);
+  color: #fff;
+  border: none;
+  padding: 0.6rem 0.95rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.btn-danger {
+  background: linear-gradient(180deg,#e3342f,#c53030);
+  color: #fff;
+  border: none;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* Table improvements for quotes */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.admin-table thead th {
+  text-align: left;
+  padding: 0.85rem 0.9rem;
+  background: linear-gradient(180deg, rgba(244,246,248,0.9), rgba(240,243,245,0.9));
+  font-weight: 800;
+  color: var(--navy);
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.admin-table tbody td {
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px dashed rgba(0,0,0,0.04);
+  vertical-align: middle;
+  font-size: 0.95rem;
+  color: var(--ink);
+}
+
+.admin-table tbody tr:nth-child(even) {
+  background: rgba(0,0,0,0.02);
+}
+
+/* PDF button prominent inside table */
+.admin-table a.btn-pdf {
+  background: linear-gradient(180deg,#0ea5a5,#0b9a9a);
+  color: #fff;
+  padding: 0.45rem 0.65rem;
+  border-radius: 8px;
+  font-weight: 800;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* Quote status badges */
+.quote-status-badge {
+  display: inline-block;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.quote-status-new { background: linear-gradient(180deg,#f59e0b,#d97706); color: #fff; }
+.quote-status-processed { background: linear-gradient(180deg,#10b981,#059669); color: #fff; }
+.quote-status-default { background: rgba(0,0,0,0.06); color: var(--ink); }
+
+/* Responsive: make table horizontally scrollable on small screens */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tablettes et petits écrans : une seule colonne, espacements resserrés */
+@media (max-width: 860px) {
+  .admin-page {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .admin-grid,
+  .admin-lists,
+  .admin-book-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-card-wide {
+    grid-column: span 1;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 1.25rem 0 0.75rem;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 0.6rem;
+  }
+}
+
+/* Téléphones : encore plus compact */
+@media (max-width: 480px) {
+  .admin-page {
+    padding: 1.1rem 0.75rem 2.5rem;
+  }
+
+  .admin-card,
+  .admin-list-card {
+    padding: 0.85rem;
+    border-radius: 14px;
+  }
+
+  .admin-card h2,
+  .admin-list-card h2 {
+    font-size: 1.05rem;
+  }
+
+  .admin-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .admin-stat-card {
+    padding: 0.7rem 0.65rem;
+  }
+
+  .admin-list-card li {
+    flex-wrap: wrap;
+  }
+}
+
+/* Admin modal styles */
+.admin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10,10,10,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1.5rem;
+}
+
+.admin-modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.25rem;
+  width: 720px;
+  max-width: 100%;
+  box-sizing: border-box;
+  box-shadow: 0 30px 80px rgba(10,10,10,0.35);
+  transform: translateY(8px);
+  opacity: 0;
+  animation: modalEnter 220ms cubic-bezier(.2,.9,.2,1) forwards;
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+}
+
+@keyframes modalEnter {
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.admin-modal-wide {
+  width: 920px;
+}
+
+.admin-modal h3 {
+  margin-top: 0;
+  margin-bottom: 0.75rem;
+  color: var(--navy);
+  font-size: 1.25rem;
+}
+
+/* Modal header style */
+.admin-modal-header {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:10px;
+  border-bottom:1px solid var(--line);
+  padding-bottom:10px;
+}
+
+.admin-modal label {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.admin-modal input[type="text"],
+.admin-modal input[type="number"],
+.admin-modal textarea,
+.admin-modal select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.7rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font: inherit;
+}
+
+.admin-modal .admin-form-actions {
+  margin-top: 0.75rem;
+}
+
+/* Image gallery inside quote modal */
+.quote-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.quote-image-grid img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.quote-image-grid img:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+}
+
+.admin-modal .admin-modal-meta p {
+  margin:6px 0;
+  color: #444;
+}
+
+.admin-modal .admin-modal-actions {
+  display:flex;
+  gap:8px;
+  margin-top:12px;
+}
+
+/* Slightly larger download button and visual separation */
+.admin-modal .btn-primary {
+  padding: 0.65rem 1rem;
+  border-radius: 12px;
+}
+
+.admin-modal .btn-outline {
+  padding: 0.6rem 0.9rem;
+}
+
+
+/* Field-level error under inputs */
+.field-error {
+  margin-top: 0.35rem;
+  color: #7b1d1d;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Make overlay clickable area obvious for accessibility */
+.admin-modal-overlay {
+  touch-action: none;
+}
+
+/* ===================== LAYOUT DASHBOARD AVEC SIDEBAR ===================== */
+/* Sidebar statique : toujours visible, fixe à gauche, quelle que soit
+   la taille d'écran. Pas de tiroir coulissant, pas de bouton menu. */
+
+.admin-dashboard-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.admin-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--navy) 0%, var(--navy-deep) 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.admin-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 1.4rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.admin-sidebar-brand-mark {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--safety);
+  color: var(--navy);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.admin-sidebar-brand-text {
+  font-weight: 800;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+}
+
+.admin-sidebar-nav {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 1rem 0.75rem;
+}
+
+.admin-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.72);
+  text-align: left;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.admin-sidebar-link i {
+  width: 18px;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.admin-sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.admin-sidebar-link-active {
+  background: var(--safety);
+  color: var(--navy);
+}
+
+.admin-sidebar-link-active:hover {
+  background: var(--safety);
+  color: var(--navy);
+}
+
+.admin-sidebar-footer {
+  padding: 1rem 1.25rem 1.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.admin-sidebar-user {
+  display: flex;
+}
+
+.admin-sidebar-logout {
+  width: 100%;
+  text-align: center;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.admin-sidebar-logout:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.5);
+  color: #fff;
+}
+
+/* Le bouton menu et l'overlay mobile ne sont plus utilisés : la sidebar
+   étant statique sur toutes les tailles d'écran, on les masque. */
+.admin-sidebar-toggle {
+  display: none;
+}
+
+.admin-sidebar-overlay {
+  display: none;
+}
+
+.admin-header-left {
+  display: flex;
+  align-items: center;
+}
+
+/* Le contenu principal laisse la place fixe pour la sidebar (240px) */
+.admin-dashboard-layout .admin-page {
+  flex: 1;
+  min-height: 100vh;
+  min-width: 0;
+  margin-left: 240px;
+}
+
+/* Sur très petits écrans, la sidebar réduit sa largeur plutôt que de
+   se cacher, pour rester statique tout en restant utilisable. */
+@media (max-width: 640px) {
+  .admin-sidebar {
+    width: 76px;
+  }
+
+  .admin-sidebar-brand-text,
+  .admin-sidebar-link span,
+  .admin-sidebar-user,
+  .admin-sidebar-logout span {
+    display: none;
+  }
+
+  .admin-sidebar-link {
+    justify-content: center;
+    padding: 0.75rem 0.5rem;
+  }
+
+  .admin-sidebar-logout {
+    padding: 0.6rem;
+  }
+
+  .admin-dashboard-layout .admin-page {
+    margin-left: 76px;
+  }
+}
