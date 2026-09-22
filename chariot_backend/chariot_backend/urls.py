@@ -11,5 +11,15 @@ urlpatterns = [
     path("api/", include("catalog.urls")),
 ]
 
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# En développement (DEBUG=True), Django sert directement les fichiers
+# médias via ce helper. En production (DEBUG=False, ex: sur Render),
+# `static()` ne fait rien par défaut — il faut donc les servir nous-mêmes,
+# peu importe DEBUG, sinon les images/PDF/vidéos uploadés (couvertures,
+# documents Éloquence, etc.) renvoient une 404.
+#
+# Note : ce n'est pas la manière la plus performante de servir des fichiers
+# médias en production (idéalement un stockage cloud comme S3/Cloudinary
+# serait préférable), mais ça fonctionne correctement pour le volume de
+# fichiers de ce projet et évite d'avoir à changer de service de stockage
+# dans l'immédiat.
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
