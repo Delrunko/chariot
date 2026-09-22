@@ -9,3 +9,6 @@ sqlparse==0.6.0
 pymupdf
 python-dotenv
 reportlab
+gunicorn
+whitenoise
+dj-database-url

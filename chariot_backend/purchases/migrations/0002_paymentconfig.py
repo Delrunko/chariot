@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('merchant_code', models.CharField(default='000000', max_length=20)),
-                ('merchant_number', models.CharField(default='696618526', max_length=20)),
+                ('merchant_number', models.CharField(default='656877046', max_length=20)),
             ],
             options={
                 'verbose_name': 'Payment configuration',

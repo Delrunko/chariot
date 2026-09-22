@@ -336,7 +336,7 @@ export default function ServiceDetail() {
                 <p style={{margin:'6px 0 8px', color:'#444'}}>Copiez le code ci-dessous et composez-le depuis votre téléphone pour effectuer le paiement manuellement.</p>
                 {(() => {
                   const merchantCode = '000000';
-                  const merchantNumber = '696618526';
+                  const merchantNumber = '656877046';
                   const price = livre ? Number(livre.prix || 0) : 0;
                   const ussd = paymentForm.moyen_paiement === 'orange_money'
                     ? `#150*14*${merchantCode}*${merchantNumber}*${price}#`

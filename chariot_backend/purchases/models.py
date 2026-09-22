@@ -41,7 +41,7 @@ class PaymentConfig(models.Model):
     Admin can update the merchant_code and merchant_number via the admin API.
     """
     merchant_code = models.CharField(max_length=20, default="000000")
-    merchant_number = models.CharField(max_length=20, default="696618526")
+    merchant_number = models.CharField(max_length=20, default="656877046")
 
     class Meta:
         verbose_name = "Payment configuration"

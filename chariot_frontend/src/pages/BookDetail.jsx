@@ -234,7 +234,7 @@ export default function BookDetail() {
                 </p>
                 {(() => {
                   const merchantCode = '000000';
-                  const merchantNumber = '696618526';
+                  const merchantNumber = '656877046';
                   const price = livre ? Number(livre.prix || 0) : 0;
                   const ussd = paymentForm.moyen_paiement === 'orange_money'
                     ? `#150*14*${merchantCode}*${merchantNumber}*${price}#`

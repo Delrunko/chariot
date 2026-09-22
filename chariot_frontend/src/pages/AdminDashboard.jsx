@@ -807,7 +807,7 @@ export default function AdminDashboard() {
   };
 
     // Payment settings handlers
-    const [paymentSettings, setPaymentSettings] = useState({ merchant_code: '000000', merchant_number: '696618526' });
+    const [paymentSettings, setPaymentSettings] = useState({ merchant_code: '000000', merchant_number: '656877046' });
     const [paymentSettingsSaving, setPaymentSettingsSaving] = useState(false);
 
     const loadPaymentSettings = async () => {
