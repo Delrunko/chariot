@@ -7,7 +7,7 @@ export default function About() {
         <span className="eyebrow">Notre mission</span>
         <h1>Mettre l'ouvrage technique entre toutes les mains, où que l'on soit</h1>
         <p>
-          Ets DOUMBOU SERVICES EXPRESS d'un constat simple : les élèves et étudiants en
+          Ets DOMBOU SERVICES EXPRESS d'un constat simple : les élèves et étudiants en
           filière Maçonnerie &amp; Bâtiment n'ont pas toujours un accès facile
           à leurs manuels de référence. Nous rendons ces ouvrages disponibles
           en ligne, achetables en quelques instants, et consultables même
@@ -49,7 +49,7 @@ export default function About() {
           <span className="eyebrow">Notre histoire</span>
           <h2>Une réalisation portée par BigData Center &amp; IA</h2>
           <p>
-            Ets DOUMBOU SERVICE par l'équipe de BigData Center &amp; IA,
+            Ets DOMBOU SERVICE par l'équipe de BigData Center &amp; IA,
             pour le compte d'un formateur et vendeur d'ouvrages techniques
             engagé depuis plusieurs années auprès des élèves de la filière
             Maçonnerie &amp; Bâtiment. La plateforme est pensée, conçue et

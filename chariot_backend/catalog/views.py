@@ -326,7 +326,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
                 c.translate(width / 2, height / 2)
                 c.rotate(45)
                 c.setFont("Helvetica-Bold", 60)
-                c.drawCentredString(0, 0, "Ets DOUMBOU SERVICES EXPRESS")
+                c.drawCentredString(0, 0, "Ets DOMBOU SERVICES EXPRESS")
                 c.restoreState()
             except Exception:
                 pass

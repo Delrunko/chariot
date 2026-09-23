@@ -9,7 +9,7 @@ export default function Footer() {
         <div className="footer-brand">
           <Link to="/" className="footer-logo" aria-label="Retour à l'accueil">
             <img src="/logo.png" alt="EDS" className="footer-logo-img" />
-            <span className="footer-brand-name">Ets DOUMBOU SERVICES EXPRESS</span>
+            <span className="footer-brand-name">Ets DOMBOU SERVICES EXPRESS</span>
           </Link>
           <p>
            Découvrez nos catégories : Hôtellerie, avec des services de restauration, décoration et gâteaux personnalisés pour vos événements ; Génie civil, avec des ouvrages sur la construction de bâtiments, ponts, routes et matériaux ; et Éloquence, avec du coaching et des formations pour progresser en prise de parole en public.

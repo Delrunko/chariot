@@ -7,7 +7,7 @@ export default function Footer() {
       <div className="footer-top">
         <div className="footer-brand">
           <span className="footer-logo">
-            <img src="/logo.png" alt="EDS" className="footer-logo-img" /> <span className="footer-brand-name">Ets DOUMBOU SERVICES EXPRESS</span>
+            <img src="/logo.png" alt="EDS" className="footer-logo-img" /> <span className="footer-brand-name">Ets DOMBOU SERVICES EXPRESS</span>
           </span>
           <p>
             La librairie technique en ligne dédiée à la filière Maçonnerie &

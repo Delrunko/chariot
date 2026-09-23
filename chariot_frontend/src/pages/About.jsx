@@ -7,7 +7,7 @@ export default function About() {
         <span className="eyebrow">Notre mission</span>
         <h1>Mettre l'ouvrage technique entre toutes les mains, où que l'on soit</h1>
         <p>
-          Ets DOUMBOU SERVICES EXPRESS d'un constat simple : les élèves et étudiants en
+          Ets DOMBOU SERVICES EXPRESS d'un constat simple : les élèves et étudiants en
           filière Maçonnerie &amp; Bâtiment n'ont pas toujours un accès facile
           à leurs manuels de référence. Nous rendons ces ouvrages disponibles
           en ligne, achetables en quelques instants, et consultables même
