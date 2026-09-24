@@ -7,14 +7,16 @@ from datetime import timedelta
 from dotenv import load_dotenv
 import dj_database_url
 
+# Imports pour la gestion des médias sur Cloudinary
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --- Sécurité : plus jamais de clé en dur dans le code une fois publié ---
-# En local, si la variable SECRET_KEY n'est pas définie, on retombe sur une
-# valeur de développement (jamais utilisée en production tant que la
-# variable d'environnement SECRET_KEY est bien configurée sur Render).
+# --- Sécurité : Clé secrète ---
 SECRET_KEY = os.environ.get(
     'SECRET_KEY',
     'django-insecure--@%$x)vo^63e7322ru0*7t=#5@!k$_bsb&)e-wlj2bdm-=7xla'
@@ -22,10 +24,7 @@ SECRET_KEY = os.environ.get(
 
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-# En production (DEBUG=False), ALLOWED_HOSTS doit lister précisément les
-# domaines autorisés — configuré via la variable d'environnement
-# ALLOWED_HOSTS (domaines séparés par des virgules), ex:
-# "chariot-backend.onrender.com,127.0.0.1"
+# --- Hôtes autorisés ---
 _allowed_hosts_env = os.environ.get('ALLOWED_HOSTS', '')
 if _allowed_hosts_env:
     ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()]
@@ -47,6 +46,10 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    
+    # Stockage Cloudinary pour les images (persistance des données)
+    'cloudinary',
+    'cloudinary_storage',
 
     # Apps EDS
     'accounts',
@@ -57,11 +60,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # Whitenoise sert les fichiers statiques (CSS/JS admin, etc.) directement
-    # depuis Django en production, sans serveur web séparé — nécessaire sur
-    # Render où il n'y a pas de Nginx/Apache devant l'app.
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
+    'corsheaders.middleware.CorsMiddleware', # Doit être placé avant CommonMiddleware
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -91,18 +91,6 @@ WSGI_APPLICATION = 'chariot_backend.wsgi.application'
 
 
 # --- Base de données ---
-# Si la variable d'environnement DATABASE_URL est définie (ex: une base
-# PostgreSQL fournie par Render), on l'utilise. Sinon on retombe sur
-# SQLite, comme en local.
-#
-# ATTENTION (important à savoir) : sur le plan gratuit de Render, le
-# système de fichiers d'un Web Service est éphémère — il est réinitialisé
-# à chaque redéploiement/redémarrage. Si tu restes sur SQLite en
-# production, la base de données (utilisateurs, achats...) sera donc
-# remise à zéro à chaque déploiement. Pour des données persistantes en
-# production, il faut créer une base PostgreSQL sur Render (le plan
-# gratuit en propose une) et définir DATABASE_URL avec son URL de
-# connexion.
 _database_url = os.environ.get('DATABASE_URL')
 if _database_url:
     DATABASES = {
@@ -115,6 +103,7 @@ else:
             'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
+
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -130,11 +119,16 @@ TIME_ZONE = 'Africa/Douala'
 USE_I18N = True
 USE_TZ = True
 
+
+# --- Fichiers Statiques et Médias ---
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Configuration du stockage (Syntaxe Django 4.2+)
 STORAGES = {
+    # Utilisation de Cloudinary pour les fichiers uploadés (garantit la persistance des images)
     'default': {
-        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage',
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',
@@ -142,9 +136,12 @@ STORAGES = {
 }
 
 MEDIA_URL = '/media/'
+# MEDIA_ROOT n'est plus utilisé pour le stockage par défaut grâce à Cloudinary, 
+# mais on le garde pour la cohérence du code.
 MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 # --- Django REST Framework ---
 REST_FRAMEWORK = {
@@ -158,27 +155,45 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(hours=2),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),  # long, car lecture hors-ligne prolongée
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
 }
 
+
 # --- Email (development) ---
-# In DEBUG mode, use the console backend so emails are printed to the runserver console.
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'no-reply@localhost'
 
-# --- CORS ---
-# En local (dev), le frontend React tourne sur un autre port. En
-# production, on ajoute l'URL du frontend déployé (Netlify) via la
-# variable d'environnement CORS_EXTRA_ORIGINS (domaines séparés par des
-# virgules), pour ne pas avoir à modifier ce fichier à chaque changement
-# de domaine.
+
+# --- CORS & CSRF (Communication Frontend <-> Backend) ---
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:4173',
     'http://127.0.0.1:4173',
+    'https://eds-doumbou.netlify.app', # Ajouté pour autoriser explicitement votre frontend
 ]
 
 _cors_extra = os.environ.get('CORS_EXTRA_ORIGINS', '')
 if _cors_extra:
     CORS_ALLOWED_ORIGINS += [o.strip() for o in _cors_extra.split(',') if o.strip()]
+
+# Indispensable pour Django 4.x+ afin d'autoriser les requêtes sécurisées (POST/PUT/DELETE) 
+# depuis un domaine HTTPS externe.
+CSRF_TRUSTED_ORIGINS = [
+    'https://eds-doumbou.netlify.app',
+    'https://chariot-backend-lmms.onrender.com',
+]
+
+_csrf_extra = os.environ.get('CSRF_EXTRA_ORIGINS', '')
+if _csrf_extra:
+    CSRF_TRUSTED_ORIGINS += [o.strip() for o in _csrf_extra.split(',') if o.strip()]
+
+
+# --- Configuration Cloudinary ---
+# Ces variables DOIVENT être définies dans l'onglet "Environment" de votre service Render
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+    secure=True
+)
