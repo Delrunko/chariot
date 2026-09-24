@@ -2,7 +2,7 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { catalogService, serviceService, quotesService, purchaseService } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import { buildWhatsAppLink } from "../utils/whatsappLink";
+import { buildWhatsAppLink } from "../utils/whatsapplink";
 import BookCard from "../components/BookCard";
 import RevealOnScroll from "../components/RevealOnScroll";
 import ServiceCard from "../components/ServiceCard";
