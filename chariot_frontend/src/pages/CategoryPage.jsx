@@ -21,7 +21,6 @@ export default function CategoryPage() {
     let mounted = true;
     setLoading(true);
 
-    // Load category list to find the category object (name, slug, sous-categories)
     catalogService
       .getCategories()
       .then((res) => {
@@ -58,8 +57,6 @@ export default function CategoryPage() {
   }, [slug, searchParams]);
 
   useEffect(() => {
-    // Load the services the current user has already paid for, so we can
-    // show the "Acheté" badge on ServiceCard (mirrors deja_achete for books).
     let mounted = true;
     if (!user) {
       setServicesAchetesIds(new Set());
@@ -86,7 +83,6 @@ export default function CategoryPage() {
     return () => { mounted = false; };
   }, [user]);
 
-  // selectedItems keyed by item id => { qty: number }
   const [selectedItems, setSelectedItems] = useState({});
   const [quoteForm, setQuoteForm] = useState({ client_name: "", client_email: "", client_phone: "", message: "", event_date: "", address: "", prix_estime: "" });
   const [submitting, setSubmitting] = useState(false);
@@ -97,7 +93,7 @@ export default function CategoryPage() {
     setSelectedItems((prev) => {
       const next = { ...prev };
       if (next[id]) delete next[id];
-      else next[id] = { quantite: 1, titre: item?.titre || item?.titre || item?.name || '' };
+      else next[id] = { quantite: 1, titre: item?.titre || item?.nom || item?.name || '' };
       return next;
     });
   };
@@ -110,7 +106,6 @@ export default function CategoryPage() {
     setSelectedItems((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), quantite: Math.max(0, Number(qty) || 0) } }));
   };
 
-  // WhatsApp number to redirect orders to (use full international format)
   const WHATSAPP_NUMBER = '+237656877046';
 
   const makeWhatsAppUrl = (number, text) => buildWhatsAppLink(number, text);
@@ -121,8 +116,6 @@ export default function CategoryPage() {
     setQuoteResult(null);
 
     try {
-      // Build selected items summary
-      // Build selected items with prices when available
       const selected = displayed
         .filter((it) => selectedItems.hasOwnProperty(it.id))
         .map((it) => ({
@@ -139,7 +132,6 @@ export default function CategoryPage() {
 
       const totalPrix = selected.reduce((sum, s) => sum + ((s.prix || 0) * (s.quantite || 1)), 0);
 
-      // Build form payload; include files if user attached references
       const formData = new FormData();
       formData.append('client_name', quoteForm.client_name || 'Anonyme');
       formData.append('client_email', quoteForm.client_email || '');
@@ -151,7 +143,6 @@ export default function CategoryPage() {
       if (quoteForm.address) formData.append('address', quoteForm.address);
       if (quoteForm.prix_estime) formData.append('prix_estime', String(quoteForm.prix_estime));
 
-      // Attach reference images if any file input with id 'quote-images' exists
       const fileInput = document.querySelector('input[name="quote_images"]');
       if (fileInput && fileInput.files && fileInput.files.length) {
         for (let i = 0; i < fileInput.files.length; i++) {
@@ -161,7 +152,6 @@ export default function CategoryPage() {
 
       const { data } = await quotesService.createQuote(formData);
 
-      // Build a polite message including reference, total price and PDF link (if available)
       const pdfUrl = data && data.pdf_file ? data.pdf_file : null;
       const ref = data && data.id ? `DEVIS-${data.id}` : 'DEVIS-N/A';
 
@@ -178,10 +168,8 @@ export default function CategoryPage() {
       }
 
       const wa = makeWhatsAppUrl(WHATSAPP_NUMBER, combinedMessage);
-      // Save waUrl so the user can click the manual button
       setQuoteResult({ success: true, data, waUrl: wa });
 
-      // Reset form and selection
       setQuoteForm({ client_name: "", client_email: "", client_phone: "", message: "", event_date: "", address: "", prix_estime: "" });
       setSelectedItems({});
 
@@ -203,7 +191,6 @@ export default function CategoryPage() {
           <p>Tous les éléments disponibles pour {category ? category.nom : slug}.</p>
         </div>
       </header>
-
 
       {loading && <div className="catalog-state">Chargement…</div>}
       {!loading && displayed.length === 0 && (
@@ -229,9 +216,7 @@ export default function CategoryPage() {
         </div>
       )}
 
-
       {category && (() => {
-        // Determine whether to show the quote form only for Hôtellerie
         const name = (category.nom || '').toString();
         const normalized = name.normalize ? name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : name.toLowerCase();
         const isHotellerie = category.slug === 'hotellerie' || category.slug === '1er-cycle' || normalized.includes('hotellerie') || normalized.includes('hotel');
@@ -245,42 +230,34 @@ export default function CategoryPage() {
                   Nom
                   <input type="text" value={quoteForm.client_name} onChange={(e) => handleChange('client_name', e.target.value)} placeholder="Votre nom" />
                 </label>
-
                 <label>
                   Email
                   <input type="email" value={quoteForm.client_email} onChange={(e) => handleChange('client_email', e.target.value)} placeholder="Votre email" />
                 </label>
-
                 <label>
                   Téléphone
                   <input type="tel" value={quoteForm.client_phone} onChange={(e) => handleChange('client_phone', e.target.value)} placeholder="Votre téléphone" />
                 </label>
-
                 <label>
                   Détails / message
                   <textarea value={quoteForm.message} onChange={(e) => handleChange('message', e.target.value)} rows="5" placeholder="Décrivez votre besoin..." />
                 </label>
-
                 <label>
                   Prix estimé (optionnel, FCFA)
                   <input type="number" min="0" value={quoteForm.prix_estime} onChange={(e) => handleChange('prix_estime', e.target.value)} placeholder="Ex: 250000" />
                 </label>
-
                 <label>
                   Date souhaitée
                   <input type="date" value={quoteForm.event_date} onChange={(e) => handleChange('event_date', e.target.value)} />
                 </label>
-
                 <label>
                   Adresse / lieu
                   <input type="text" value={quoteForm.address} onChange={(e) => handleChange('address', e.target.value)} placeholder="Adresse ou lieu de livraison" />
                 </label>
-
                 <label>
                   Photos de référence (optionnel)
                   <input type="file" name="quote_images" accept="image/*" multiple />
                 </label>
-
                 <div className="quote-actions">
                   <button type="submit" className="btn-primary" disabled={submitting}>{submitting ? 'Envoi…' : 'Envoyer la demande'}</button>
                   <button type="button" className="btn-outline" onClick={() => { setQuoteForm({ client_name: '', client_email: '', client_phone: '', message: '', event_date: '', address: '', prix_estime: '' }); setSelectedItems({}); }}>Réinitialiser</button>
@@ -331,11 +308,9 @@ export default function CategoryPage() {
                 </ul>
               )}
             </aside>
-
           </section>
         ) : null;
       })()}
-
     </div>
   );
 }
