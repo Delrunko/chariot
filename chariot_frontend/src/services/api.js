@@ -2,7 +2,10 @@
 
 const API_BASE_URL = "https://chariot-backend-lmms.onrender.com/api";
 
-const api = axios.create({ baseURL: API_BASE_URL });
+const api = axios.create({ 
+  baseURL: API_BASE_URL,
+  timeout: 60000, // CORRECTION 1 : Attendre 60 secondes que Render se réveille
+});
 
 // --- Attach JWT token to each request ---
 api.interceptors.request.use((config) => {
@@ -72,7 +75,6 @@ export const serviceService = {
 
 // Quotes / Devis
 export const quotesService = {
-  // payload: { client_name, client_email, client_phone, message, categorie, items }
   createQuote: (payload) => api.post('/quotes/', payload),
 };
 
@@ -93,11 +95,9 @@ export const testimonialsService = {
 };
 
 export const purchaseService = {
-  // legacy helper: quick buy using axios
   buy: (livreId, moyenPaiement = "orange_money") =>
     api.post("/purchases/", { livre: livreId, moyen_paiement: moyenPaiement }),
 
-  // Service (Éloquence) quick buy
   buyService: (serviceId, moyenPaiement = "orange_money", referenceTransaction = "") =>
     api.post("/purchases/service/", {
       service: serviceId,
@@ -105,7 +105,6 @@ export const purchaseService = {
       reference_transaction: referenceTransaction,
     }),
 
-  // Create a purchase with arbitrary payload (useful to send reference_transaction etc.)
   create: async (payload) => {
     const headers = buildFetchHeaders({ "Content-Type": "application/json" });
     const res = await fetch(`${API_BASE_URL}/purchases/`, {
@@ -160,44 +159,58 @@ export const libraryService = {
     api.post(`/library/${livreId}/revalider/`, { empreinte_appareil: getEmpreinteAppareil() }),
   readUrl: (livreId) =>
     `${API_BASE_URL}/library/${livreId}/read/?empreinte_appareil=${getEmpreinteAppareil()}`,
+  
   readDocument: async (livreId) => {
     const empreinte = getEmpreinteAppareil();
     const readUrl = `${API_BASE_URL}/library/${livreId}/read/?empreinte_appareil=${empreinte}`;
 
-    // Try to fetch the document
-    let res = await fetch(readUrl, { headers: buildFetchHeaders() });
+    // CORRECTION 2 : Ajouter un timeout de 60 secondes pour les requêtes fetch
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-    // If no access (404) or server asks for revalidation (426), attempt revalidation once
-    if (!res.ok && (res.status === 404 || res.status === 426)) {
-      // Attempt to revalidate (will create/update AccesLecture if user has PAYE achat)
-      const revalRes = await fetch(`${API_BASE_URL}/library/${livreId}/revalider/`, {
-        method: "POST",
-        headers: buildFetchHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ empreinte_appareil: empreinte }),
+    try {
+      let res = await fetch(readUrl, { 
+        headers: buildFetchHeaders(),
+        signal: controller.signal 
       });
 
-      if (!revalRes.ok) {
-        // revalidation failed — propagate original error or revalidation message
-        const errText = await revalRes.text();
-        throw new Error(errText || "Revalidation impossible.");
+      if (!res.ok && (res.status === 404 || res.status === 426)) {
+        const revalRes = await fetch(`${API_BASE_URL}/library/${livreId}/revalider/`, {
+          method: "POST",
+          headers: buildFetchHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({ empreinte_appareil: empreinte }),
+          signal: controller.signal,
+        });
+
+        if (!revalRes.ok) {
+          const errText = await revalRes.text();
+          throw new Error(errText || "Revalidation impossible.");
+        }
+
+        res = await fetch(readUrl, { 
+          headers: buildFetchHeaders(),
+          signal: controller.signal 
+        });
       }
 
-      // Revalidation succeeded — try to fetch the document again
-      res = await fetch(readUrl, { headers: buildFetchHeaders() });
-    }
+      if (!res.ok) {
+        const payload = await res.text();
+        throw new Error(payload || "Impossible d'ouvrir le document.");
+      }
 
-    if (!res.ok) {
-      const payload = await res.text();
-      throw new Error(payload || "Impossible d'ouvrir le document.");
+      const blob = await res.blob();
+      const pdfBlob = new Blob([blob], { type: "application/pdf" });
+      return URL.createObjectURL(pdfBlob);
+      
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        throw new Error("Le serveur met trop de temps à répondre (réveil en cours). Veuillez patienter 30 secondes et réessayer.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
     }
-
-    const blob = await res.blob();
-    // Force the MIME type to application/pdf so the browser's PDF viewer
-    // renders it correctly inside the iframe, even if the server didn't
-    // send the right Content-Type header.
-    const pdfBlob = new Blob([blob], { type: "application/pdf" });
-    return URL.createObjectURL(pdfBlob);
   },
 };
 
-export default api
+export default api;
