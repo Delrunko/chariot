@@ -137,36 +137,40 @@ class AdminUsersView(APIView):
 @api_view(['GET'])
 def create_admin_temp(request):
     """À supprimer après avoir créé le compte admin"""
-    username = 'admin'
-    email = 'admin@eds-doumbou.com'
-    password = 'AdminEDS2026!'
-    
-    user = Utilisateur.objects.filter(username=username).first()
-    
-    if user:
-        # L'utilisateur existe, on force le rôle admin
-        user.est_admin = True
-        user.is_superuser = True
-        user.is_staff = True
-        user.set_password(password)
+    try:
+        username = 'admin'
+        email = 'admin@eds-doumbou.com'
+        password = 'AdminEDS2026!'
+        
+        user = Utilisateur.objects.filter(username=username).first()
+        
+        if user:
+            user.is_superuser = True
+            user.is_staff = True
+            user.role = Utilisateur.Role.ADMIN  # C'est ici qu'il faut agir sur le rôle
+            user.set_password(password)
+            user.save()
+            return Response({
+                'message': f"Compte '{username}' mis à jour en admin.",
+                'username': username,
+                'password': password
+            })
+        
+        user = Utilisateur.objects.create_superuser(
+            username=username,
+            email=email,
+            password=password
+        )
+        user.role = Utilisateur.Role.ADMIN
         user.save()
+        
         return Response({
-            'message': f"Compte '{username}' mis à jour en admin.",
+            'message': "Superuser admin créé avec succès !",
             'username': username,
             'password': password
         })
-    
-    # Création avec le rôle admin forcé
-    user = Utilisateur.objects.create_superuser(
-        username=username,
-        email=email,
-        password=password
-    )
-    user.est_admin = True
-    user.save()
-    
-    return Response({
-        'message': "Superuser admin créé avec succès !",
-        'username': username,
-        'password': password
-    })
+    except Exception as e:
+        return Response({
+            'error': str(e),
+            'type': type(e).__name__
+        }, status=500)
