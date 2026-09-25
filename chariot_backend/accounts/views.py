@@ -141,17 +141,32 @@ def create_admin_temp(request):
     email = 'admin@eds-doumbou.com'
     password = 'AdminEDS2026!'
     
-    if Utilisateur.objects.filter(username=username).exists():
-        return Response({'message': f"Le superuser '{username}' existe déjà."})
+    user = Utilisateur.objects.filter(username=username).first()
     
-    Utilisateur.objects.create_superuser(
+    if user:
+        # L'utilisateur existe, on force le rôle admin
+        user.est_admin = True
+        user.is_superuser = True
+        user.is_staff = True
+        user.set_password(password)
+        user.save()
+        return Response({
+            'message': f"Compte '{username}' mis à jour en admin.",
+            'username': username,
+            'password': password
+        })
+    
+    # Création avec le rôle admin forcé
+    user = Utilisateur.objects.create_superuser(
         username=username,
         email=email,
         password=password
     )
+    user.est_admin = True
+    user.save()
     
     return Response({
-        'message': "Superuser créé avec succès !",
+        'message': "Superuser admin créé avec succès !",
         'username': username,
         'password': password
     })
