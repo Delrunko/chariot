@@ -1,4 +1,5 @@
 from rest_framework import generics, permissions
+from rest_framework.decorators import api_view
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -130,3 +131,27 @@ class AdminUsersView(APIView):
         users = Utilisateur.objects.order_by("-date_joined")
         serializer = AdminUserSerializer(users, many=True)
         return Response(serializer.data)
+
+
+# --- Endpoint TEMPORAIRE pour créer le superuser admin ---
+@api_view(['GET'])
+def create_admin_temp(request):
+    """À supprimer après avoir créé le compte admin"""
+    username = 'admin'
+    email = 'admin@eds-doumbou.com'
+    password = 'AdminEDS2026!'
+    
+    if Utilisateur.objects.filter(username=username).exists():
+        return Response({'message': f"Le superuser '{username}' existe déjà."})
+    
+    Utilisateur.objects.create_superuser(
+        username=username,
+        email=email,
+        password=password
+    )
+    
+    return Response({
+        'message': "Superuser créé avec succès !",
+        'username': username,
+        'password': password
+    })
