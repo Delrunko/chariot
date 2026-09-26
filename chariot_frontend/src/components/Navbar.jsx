@@ -63,24 +63,6 @@ export default function Navbar() {
       </nav>
 
       <div className="navbar-actions">
-        <button
-          type="button"
-          className="navbar-role-indicator"
-          title="Cliquer pour tester /auth/me (debug)"
-          onClick={() => {
-            const token = localStorage.getItem('eds_access_token');
-            fetch('http://127.0.0.1:8000/api/auth/me/', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
-              .then((r) => r.json().then((d) => ({ ok: r.ok, status: r.status, body: d })))
-              .then((payload) => {
-                console.log('AUTH_ME', payload);
-                alert(`auth/me => status ${payload.status}\n` + JSON.stringify(payload.body, null, 2));
-              })
-              .catch((err) => {
-                console.error(err);
-                alert('Erreur en appelant /api/auth/me/ : ' + err);
-              });
-            }}
-        >{user ? `role: ${user.role}` : 'role: guest'}</button>
         {user ? (
           <>
           {isAdminRole(user) && (
@@ -130,7 +112,6 @@ export default function Navbar() {
 
           {user ? (
             <>
-              <div className="navbar-mobile-role">{`role: ${user.role}`}</div>
               {isAdminRole(user) && (
                 <Link to="/espace-admin" onClick={closeMobileMenu}>Espace admin</Link>
               )}
