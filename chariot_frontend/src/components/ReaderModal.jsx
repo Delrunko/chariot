@@ -21,7 +21,18 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
   const [renduEnCours, setRenduEnCours] = useState(false);
   const conteneurRef = useRef(null);
   const pdfDocRef = useRef(null);
-  const createdUrlRef = useRef(false); // whether src is an object URL created by this component (to revoke on close)
+  const ownedUrlRef = useRef(null);
+
+  const libererRessourcesPdf = () => {
+    if (ownedUrlRef.current) {
+      URL.revokeObjectURL(ownedUrlRef.current);
+      ownedUrlRef.current = null;
+    }
+    if (pdfDocRef.current) {
+      void pdfDocRef.current.destroy();
+      pdfDocRef.current = null;
+    }
+  };
 
   useEffect(() => {
     // If a direct documentUrl is provided (service document), use it directly
@@ -54,10 +65,10 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
             // If the response looks like a PDF (or generic binary), use blob
             if (ct.includes('pdf') || ct.includes('octet-stream') || res.headers.get('content-disposition')) {
               const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
               if (isMounted) {
+                const url = URL.createObjectURL(blob);
+                ownedUrlRef.current = url;
                 setSrc(url);
-                createdUrlRef.current = true;
                 setStatusMessage("");
                 setChargement(false);
               }
@@ -74,7 +85,6 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
         if (isMounted) {
           setSrc(documentUrl);
           setStatusMessage("");
-          createdUrlRef.current = false;
           setChargement(false);
         }
       };
@@ -85,9 +95,11 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
         .readDocument(resolvedId)
         .then((url) => {
           if (isMounted) {
+            ownedUrlRef.current = url;
             setSrc(url);
             setStatusMessage("");
-            createdUrlRef.current = true;
+          } else {
+            URL.revokeObjectURL(url);
           }
         })
         .catch((err) => {
@@ -103,7 +115,7 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
 
     return () => {
       isMounted = false;
-      if (createdUrlRef.current && src) URL.revokeObjectURL(src);
+      libererRessourcesPdf();
     };
   }, [resolvedId, open, documentUrl]);
 
@@ -217,7 +229,8 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
 
   const fermer = (event) => {
     if (event && event.stopPropagation) event.stopPropagation();
-    if (createdUrlRef.current && src) URL.revokeObjectURL(src);
+    libererRessourcesPdf();
+    setSrc("");
     if (onClose) onClose();
     else navigate("/ma-bibliotheque");
   };

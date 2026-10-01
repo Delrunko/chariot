@@ -117,6 +117,31 @@ class LireLivreView(APIView):
             fichier_livre = acces.livre.fichier
             with fichier_livre.open("rb") as fichier:
                 contenu_pdf = fichier.read()
+        except requests.exceptions.HTTPError as error:
+            logger.exception(
+                "Unable to retrieve purchased PDF (user=%s, book=%s, file=%s, storage=%s).",
+                request.user.pk,
+                livre_id,
+                getattr(acces.livre.fichier, "name", ""),
+                type(acces.livre.fichier.storage).__name__,
+            )
+            if (
+                error.response is not None
+                and error.response.status_code == requests.codes.unauthorized
+            ):
+                detail = (
+                    "Le stockage Cloudinary refuse l'accès au PDF. "
+                    "L'administrateur doit vérifier les paramètres d'accès du fichier."
+                )
+            else:
+                detail = (
+                    "Le PDF est absent ou stocké dans un format incompatible. "
+                    "Demandez à l'administrateur de joindre à nouveau le fichier PDF original."
+                )
+            return Response(
+                {"detail": detail},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         except (OSError, requests.exceptions.RequestException):
             logger.exception(
                 "Unable to retrieve purchased PDF (user=%s, book=%s, file=%s, storage=%s).",

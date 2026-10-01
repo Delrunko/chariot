@@ -83,3 +83,6 @@ Le stockage Cloudinary envoie les PDF et documents en ressource `raw`, les
 images en ressource `image` et les vidéos en ressource `video`. Après le
 déploiement de ce réglage, rééditer chaque livre affecté, joindre de nouveau
 son PDF original et enregistrer pour remplacer l'ancienne ressource Cloudinary.
+Si Cloudinary refuse la lecture publique d'un PDF avec une erreur 401, le
+backend retente son téléchargement avec une URL signée de courte durée; les
+identifiants Cloudinary doivent donc rester configurés uniquement sur le serveur.
