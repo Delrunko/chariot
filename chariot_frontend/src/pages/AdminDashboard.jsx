@@ -295,6 +295,7 @@ function AdminDashboardContent({ user, logout }) {
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key === "Escape") {
+        setSidebarOuverte(false);
         setShowCategoryModal(false);
         setShowSubCategoryModal(false);
         setShowBookModal(false);
@@ -848,7 +849,7 @@ function AdminDashboardContent({ user, logout }) {
   return (
     <div className="admin-dashboard-layout">
       {/* ---------- BARRE LATÉRALE ---------- */}
-      <aside className="admin-sidebar">
+      <aside className={`admin-sidebar ${sidebarOuverte ? "admin-sidebar-open" : ""}`}>
         <div className="admin-sidebar-brand">
           <span className="admin-sidebar-brand-mark">EDS</span>
           <span className="admin-sidebar-brand-text">EDS Admin</span>
@@ -859,7 +860,10 @@ function AdminDashboardContent({ user, logout }) {
               key={section.id}
               type="button"
               className={`admin-sidebar-link ${activeSection === section.id ? "admin-sidebar-link-active" : ""}`}
-              onClick={() => setActiveSection(section.id)}
+              onClick={() => {
+                setActiveSection(section.id);
+                setSidebarOuverte(false);
+              }}
             >
               <i className={section.icon} aria-hidden="true" />
               <span>{section.label}</span>
@@ -875,12 +879,29 @@ function AdminDashboardContent({ user, logout }) {
           </button>
         </div>
       </aside>
+      {sidebarOuverte && (
+        <button
+          type="button"
+          className="admin-sidebar-overlay"
+          aria-label="Fermer le menu d'administration"
+          onClick={() => setSidebarOuverte(false)}
+        />
+      )}
 
       {/* ---------- CONTENU PRINCIPAL ---------- */}
       <div className="admin-page">
         <div className="admin-shell">
           <header className="admin-header">
             <div className="admin-header-left">
+              <button
+                type="button"
+                className="admin-mobile-menu-toggle"
+                aria-label={sidebarOuverte ? "Fermer le menu" : "Ouvrir le menu"}
+                aria-expanded={sidebarOuverte}
+                onClick={() => setSidebarOuverte((ouverte) => !ouverte)}
+              >
+                <i className={`fa-solid ${sidebarOuverte ? "fa-xmark" : "fa-bars"}`} aria-hidden="true" />
+              </button>
               <div>
                 <p className="eyebrow eyebrow-light">Administration</p>
                 <h1>{currentSectionLabel}</h1>
@@ -1442,49 +1463,51 @@ function AdminDashboardContent({ user, logout }) {
                   {quotes.length === 0 ? (
                     <div className="empty">Aucun devis reçu.</div>
                   ) : (
-                    <table className="admin-table">
-                      <thead>
-                        <tr>
-                          <th style={{width:80}}>ID</th>
-                          <th>Client</th>
-                          <th>Téléphone</th>
-                          <th>Date</th>
-                          <th>Catégorie</th>
-                          <th style={{width:120}}>Statut</th>
-                          <th style={{width:120}}>PDF</th>
-                          <th style={{width:140}}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quotes.map((q) => (
-                          <tr key={q.id}>
-                            <td>{q.id}</td>
-                            <td style={{fontWeight:700}}>{q.client_name || '—'}</td>
-                            <td>{q.client_phone || '—'}</td>
-                            <td>{new Date(q.created_at).toLocaleString()}</td>
-                            <td>{q.categorie ? q.categorie : '-'}</td>
-                            <td>
-                              {q.pdf_file ? (
-                                <span className="quote-status-badge quote-status-processed">Traité</span>
-                              ) : (
-                                <span className="quote-status-badge quote-status-new">Nouveau</span>
-                              )}
-                            </td>
-                            <td>
-                              {q.pdf_file ? (
-                                <a href={q.pdf_file} target="_blank" rel="noreferrer" className="btn-pdf">PDF</a>
-                              ) : (
-                                <span className="muted">—</span>
-                              )}
-                            </td>
-                            <td>
-                              <button type="button" className="admin-mini-btn" onClick={() => { setSelectedQuote(q); setShowQuoteModal(true); }}>Voir</button>
-                              <button type="button" className="admin-mini-btn" style={{marginLeft:8}} onClick={() => handleDeleteQuote && handleDeleteQuote(q.id)}>Supprimer</button>
-                            </td>
+                    <div className="table-responsive">
+                      <table className="admin-table">
+                        <thead>
+                          <tr>
+                            <th style={{width:80}}>ID</th>
+                            <th>Client</th>
+                            <th>Téléphone</th>
+                            <th>Date</th>
+                            <th>Catégorie</th>
+                            <th style={{width:120}}>Statut</th>
+                            <th style={{width:120}}>PDF</th>
+                            <th style={{width:140}}>Actions</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {quotes.map((q) => (
+                            <tr key={q.id}>
+                              <td>{q.id}</td>
+                              <td style={{fontWeight:700}}>{q.client_name || '—'}</td>
+                              <td>{q.client_phone || '—'}</td>
+                              <td>{new Date(q.created_at).toLocaleString()}</td>
+                              <td>{q.categorie ? q.categorie : '-'}</td>
+                              <td>
+                                {q.pdf_file ? (
+                                  <span className="quote-status-badge quote-status-processed">Traité</span>
+                                ) : (
+                                  <span className="quote-status-badge quote-status-new">Nouveau</span>
+                                )}
+                              </td>
+                              <td>
+                                {q.pdf_file ? (
+                                  <a href={q.pdf_file} target="_blank" rel="noreferrer" className="btn-pdf">PDF</a>
+                                ) : (
+                                  <span className="muted">—</span>
+                                )}
+                              </td>
+                              <td>
+                                <button type="button" className="admin-mini-btn" onClick={() => { setSelectedQuote(q); setShowQuoteModal(true); }}>Voir</button>
+                                <button type="button" className="admin-mini-btn" style={{marginLeft:8}} onClick={() => handleDeleteQuote && handleDeleteQuote(q.id)}>Supprimer</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </section>
 
@@ -1494,7 +1517,7 @@ function AdminDashboardContent({ user, logout }) {
                           <div className="admin-modal-header">
                             <h3>Devis — #{selectedQuote.id}</h3>
                           </div>
-                          <div style={{display:'grid', gridTemplateColumns:'1fr 320px', gap:12}}>
+                          <div className="quote-details-grid">
                             <div>
                               <p style={{margin:0, fontWeight:700}}>{selectedQuote.client_name || 'Anonyme'}</p>
                               <p style={{margin:'6px 0 0', color:'#666'}}>{selectedQuote.client_phone} • {selectedQuote.client_email}</p>

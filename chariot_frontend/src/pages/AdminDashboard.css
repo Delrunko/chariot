@@ -330,6 +330,7 @@
 /* Table improvements for quotes */
 .admin-table {
   width: 100%;
+  min-width: 760px;
   border-collapse: collapse;
   background: #fff;
   border-radius: 12px;
@@ -386,6 +387,7 @@
 /* Responsive: make table horizontally scrollable on small screens */
 .table-responsive {
   overflow-x: auto;
+  max-width: 100%;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -542,6 +544,12 @@
   border: 1px solid var(--line);
   cursor: pointer;
   transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.quote-details-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 320px);
+  gap: 12px;
 }
 
 .quote-image-grid img:hover {
@@ -707,8 +715,6 @@
   color: #fff;
 }
 
-/* Le bouton menu et l'overlay mobile ne sont plus utilisés : la sidebar
-   étant statique sur toutes les tailles d'écran, on les masque. */
 .admin-sidebar-toggle {
   display: none;
 }
@@ -720,6 +726,7 @@
 .admin-header-left {
   display: flex;
   align-items: center;
+  gap: 0.85rem;
 }
 
 /* Le contenu principal laisse la place fixe pour la sidebar (240px) */
@@ -730,30 +737,126 @@
   margin-left: 240px;
 }
 
-/* Sur très petits écrans, la sidebar réduit sa largeur plutôt que de
-   se cacher, pour rester statique tout en restant utilisable. */
-@media (max-width: 640px) {
+/* On tablet and mobile, the sidebar becomes an accessible off-canvas menu. */
+@media (max-width: 860px) {
   .admin-sidebar {
-    width: 76px;
+    width: min(280px, calc(100vw - 3.5rem));
+    max-width: 100%;
+    transform: translateX(-100%);
+    transition: transform 180ms ease;
+    padding-bottom: env(safe-area-inset-bottom);
   }
 
-  .admin-sidebar-brand-text,
-  .admin-sidebar-link span,
-  .admin-sidebar-user,
-  .admin-sidebar-logout span {
-    display: none;
+  .admin-sidebar-open {
+    transform: translateX(0);
   }
 
-  .admin-sidebar-link {
-    justify-content: center;
-    padding: 0.75rem 0.5rem;
-  }
-
-  .admin-sidebar-logout {
-    padding: 0.6rem;
+  .admin-sidebar-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    border: 0;
+    padding: 0;
+    background: rgba(12, 15, 21, 0.48);
   }
 
   .admin-dashboard-layout .admin-page {
-    margin-left: 76px;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .admin-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .admin-mobile-menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--navy);
+    font-size: 1.1rem;
+    cursor: pointer;
+  }
+}
+
+@media (min-width: 861px) {
+  .admin-mobile-menu-toggle {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .admin-page {
+    padding: 1rem 0.75rem 2rem;
+  }
+
+  .admin-shell {
+    width: 100%;
+  }
+
+  .admin-header {
+    padding-top: max(0.75rem, env(safe-area-inset-top));
+  }
+
+  .admin-header h1 {
+    font-size: clamp(1.45rem, 7vw, 2rem);
+    overflow-wrap: anywhere;
+  }
+
+  .admin-header .eyebrow {
+    margin: 0;
+  }
+
+  .admin-modal-overlay {
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: max(0.75rem, env(safe-area-inset-top)) 0.75rem max(0.75rem, env(safe-area-inset-bottom));
+  }
+
+  .admin-modal,
+  .admin-modal-wide {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    padding: 1rem;
+    margin: auto 0;
+  }
+
+  .admin-modal-header {
+    align-items: flex-start;
+  }
+
+  .admin-modal-header h3 {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-form-actions > button {
+    min-height: 42px;
+  }
+
+  .admin-list-card li {
+    align-items: flex-start;
+  }
+
+  .quote-details-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .quote-image-grid {
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-sidebar {
+    transition: none;
   }
 }
