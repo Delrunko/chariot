@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth, isAdminRole } from "../context/AuthContext";
 import "./AuthForm.css";
 
@@ -9,6 +9,7 @@ export default function Login() {
   const [erreur, setErreur] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const submit = async (e) => {
     e.preventDefault();
@@ -18,7 +19,7 @@ export default function Login() {
       if (isAdminRole(user)) {
         navigate("/espace-admin");
       } else {
-        navigate("/");
+        navigate(location.state?.from?.pathname || "/");
       }
     } catch {
       setErreur("Identifiants incorrects.");

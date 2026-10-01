@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from .models import Achat
+from catalog.serializers import LivreListSerializer
 
 
 class AchatSerializer(serializers.ModelSerializer):
     livre_titre = serializers.CharField(source="livre.titre", read_only=True)
+    livre_detail = LivreListSerializer(source="livre", read_only=True)
     utilisateur_username = serializers.CharField(source="utilisateur.username", read_only=True)
 
     class Meta:
@@ -12,6 +14,7 @@ class AchatSerializer(serializers.ModelSerializer):
             "id",
             "livre",
             "livre_titre",
+            "livre_detail",
             "utilisateur",
             "utilisateur_username",
             "moyen_paiement",

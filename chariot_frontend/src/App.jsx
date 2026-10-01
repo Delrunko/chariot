@@ -62,7 +62,18 @@ function AppRoutes() {
           <Route path="/service/:slug" element={<ServiceDetail />} />
           <Route path="/connexion" element={<Login />} />
           <Route path="/inscription" element={<Register />} />
-          <Route path="/ma-bibliotheque" element={<MyLibrary />} />
+          <Route
+            path="/ma-bibliotheque"
+            element={
+              !user ? (
+                <Navigate to="/connexion" replace state={{ from: location }} />
+              ) : isAdminRole(user) ? (
+                <Navigate to="/espace-admin" replace />
+              ) : (
+                <MyLibrary />
+              )
+            }
+          />
           <Route path="/lire/:id" element={<ReaderModal open={true} />} />
           <Route path="/a-propos" element={<About />} />
           <Route path="*" element={<Navigate to="/" replace />} />

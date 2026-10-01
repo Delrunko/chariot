@@ -48,7 +48,7 @@ L'admin (gestion catégories, sous-catégories, livres) sur `http://127.0.0.1:80
 | `/api/auth/register/` | POST | Inscription |
 | `/api/auth/login/` | POST | Connexion (retourne access + refresh JWT) |
 | `/api/purchases/` | POST | Acheter un livre |
-| `/api/purchases/mes-achats/` | GET | Historique des achats |
+| `/api/purchases/mes-achats/` | GET | Achats de livres du client, avec statut et détails du livre |
 | `/api/library/` | GET | Ma bibliothèque (livres possédés) |
 | `/api/library/{livre_id}/revalider/` | POST | Revalider l'accès hors-ligne pour un appareil |
 | `/api/library/{livre_id}/read/` | GET | Lire le contenu (accès contrôlé, jamais d'URL directe) |

@@ -43,7 +43,11 @@ class MesAchatsView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return Achat.objects.filter(utilisateur=self.request.user, statut=Achat.Statut.PAYE)
+        return (
+            Achat.objects.filter(utilisateur=self.request.user)
+            .select_related("livre", "livre__sous_categorie__categorie")
+            .order_by("-date_achat")
+        )
 
 
 class AdminAchatsListView(generics.ListAPIView):
