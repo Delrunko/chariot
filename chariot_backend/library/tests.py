@@ -1,6 +1,6 @@
 import io
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 import fitz
 from django.test import TestCase
@@ -82,6 +82,74 @@ class LireLivreViewTests(TestCase):
             reponse = LireLivreView.as_view()(requete, livre_id=1)
 
         self.assertEqual(reponse.status_code, 404)
+
+    def test_read_reports_remote_storage_failure_without_server_error(self):
+        fichier = Mock()
+        fichier.open.side_effect = OSError("Remote PDF not found")
+        acces = SimpleNamespace(
+            pk=1,
+            actif=True,
+            doit_revalider=False,
+            livre=SimpleNamespace(fichier=fichier),
+        )
+        acces_manager = Mock()
+        acces_manager.select_related.return_value.get.return_value = acces
+        utilisateur = SimpleNamespace(
+            is_authenticated=True,
+            pk=7,
+            username="lecteur",
+            telephone="",
+            get_full_name=lambda: "Lecteur Test",
+        )
+        requete = APIRequestFactory().get(
+            "/api/library/1/read/?empreinte_appareil=test"
+        )
+        force_authenticate(requete, user=utilisateur)
+
+        with (
+            patch("library.views.Achat.objects.filter") as achats,
+            patch("library.views.AccesLecture.objects", acces_manager),
+        ):
+            achats.return_value.exists.return_value = True
+            reponse = LireLivreView.as_view()(requete, livre_id=1)
+
+        self.assertEqual(reponse.status_code, 503)
+        self.assertEqual(
+            reponse.data["detail"],
+            "Le fichier PDF est indisponible sur le stockage distant.",
+        )
+
+    def test_read_reports_invalid_pdf_without_server_error(self):
+        fichier = Mock()
+        fichier.open = mock_open(read_data=b"not a PDF")
+        acces = SimpleNamespace(
+            pk=1,
+            actif=True,
+            doit_revalider=False,
+            livre=SimpleNamespace(fichier=fichier),
+        )
+        acces_manager = Mock()
+        acces_manager.select_related.return_value.get.return_value = acces
+        utilisateur = SimpleNamespace(
+            is_authenticated=True,
+            pk=7,
+            username="lecteur",
+            telephone="",
+            get_full_name=lambda: "Lecteur Test",
+        )
+        requete = APIRequestFactory().get(
+            "/api/library/1/read/?empreinte_appareil=test"
+        )
+        force_authenticate(requete, user=utilisateur)
+
+        with (
+            patch("library.views.Achat.objects.filter") as achats,
+            patch("library.views.AccesLecture.objects", acces_manager),
+        ):
+            achats.return_value.exists.return_value = True
+            reponse = LireLivreView.as_view()(requete, livre_id=1)
+
+        self.assertEqual(reponse.status_code, 422)
 
     def test_revalidation_reactivates_existing_access_for_paid_purchase(self):
         utilisateur = SimpleNamespace(is_authenticated=True)

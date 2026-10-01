@@ -168,6 +168,24 @@ export const libraryService = {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
 
+    const getErrorMessage = async (response) => {
+      const contentType = response.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
+        return data.detail || "Impossible d'ouvrir le document.";
+      }
+
+      if (contentType.includes("text/html")) {
+        return `Le serveur n'a pas pu préparer le PDF (erreur ${response.status}). Réessayez plus tard.`;
+      }
+
+      const text = await response.text();
+      if (/^\s*(<!doctype\s+html|<html\b)/i.test(text)) {
+        return `Le serveur n'a pas pu préparer le PDF (erreur ${response.status}). Réessayez plus tard.`;
+      }
+      return text || `Impossible d'ouvrir le document (erreur ${response.status}).`;
+    };
+
     try {
       let res = await fetch(readUrl, { 
         headers: buildFetchHeaders(),
@@ -183,8 +201,7 @@ export const libraryService = {
         });
 
         if (!revalRes.ok) {
-          const errText = await revalRes.text();
-          throw new Error(errText || "Revalidation impossible.");
+          throw new Error(await getErrorMessage(revalRes));
         }
 
         res = await fetch(readUrl, { 
@@ -194,8 +211,15 @@ export const libraryService = {
       }
 
       if (!res.ok) {
-        const payload = await res.text();
-        throw new Error(payload || "Impossible d'ouvrir le document.");
+        throw new Error(await getErrorMessage(res));
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (
+        !contentType.includes("application/pdf") &&
+        !contentType.includes("application/octet-stream")
+      ) {
+        throw new Error("Le serveur a renvoyé un contenu qui n'est pas un PDF.");
       }
 
       const blob = await res.blob();

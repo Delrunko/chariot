@@ -1,3 +1,6 @@
+import logging
+
+import requests
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,6 +9,8 @@ from .models import AccesLecture
 from .serializers import AccesLectureSerializer
 from .watermark import generer_pdf_filigrane
 from purchases.models import Achat
+
+logger = logging.getLogger(__name__)
 
 
 class MaBibliothequeView(generics.ListAPIView):
@@ -94,9 +99,33 @@ class LireLivreView(APIView):
         if not acces.livre.fichier:
             raise Http404("Fichier PDF introuvable.")
 
-        with acces.livre.fichier.open("rb") as fichier:
+        try:
+            with acces.livre.fichier.open("rb") as fichier:
+                contenu_pdf = fichier.read()
+        except (OSError, requests.exceptions.RequestException):
+            logger.exception(
+                "Unable to retrieve purchased PDF (user=%s, book=%s).",
+                request.user.pk,
+                livre_id,
+            )
+            return Response(
+                {"detail": "Le fichier PDF est indisponible sur le stockage distant."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        try:
             pdf_filigrane = generer_pdf_filigrane(
-                fichier.read(), nom_complet, telephone
+                contenu_pdf, nom_complet, telephone
+            )
+        except (RuntimeError, ValueError):
+            logger.exception(
+                "Unable to watermark purchased PDF (user=%s, book=%s).",
+                request.user.pk,
+                livre_id,
+            )
+            return Response(
+                {"detail": "Le fichier PDF est invalide ou ne peut pas être préparé."},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
             )
 
         return FileResponse(
