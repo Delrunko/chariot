@@ -1,16 +1,72 @@
 import io
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock, mock_open, patch
 from urllib.parse import quote
 
 import fitz
 from django.core.exceptions import ImproperlyConfigured
+from django.utils import timezone
 from django.test import TestCase
-from rest_framework.test import APIRequestFactory, force_authenticate
+from rest_framework.test import APIRequestFactory, APITestCase, force_authenticate
 
+from accounts.models import Utilisateur
+from catalog.models import Categorie, Livre, SousCategorie
 from chariot_backend.settings import _cloudinary_config_from_env
 from .models import AccesLecture
 from .views import LireLivreView, RevaliderAccesView
+
+
+class MaBibliothequeViewTests(APITestCase):
+    def setUp(self):
+        self.utilisateur = Utilisateur.objects.create_user(
+            username="lecteur-bibliotheque",
+            password="test-password",
+        )
+        categorie = Categorie.objects.create(nom="Bibliothèque")
+        sous_categorie = SousCategorie.objects.create(
+            categorie=categorie,
+            nom="Technique",
+        )
+        self.livre = Livre.objects.create(
+            titre="Livre unique",
+            sous_categorie=sous_categorie,
+            prix=1000,
+            couverture="couvertures/livre.jpg",
+        )
+        self.client.force_authenticate(user=self.utilisateur)
+
+    def test_library_returns_one_access_per_book_using_most_recent_device(self):
+        ancien_acces = AccesLecture.objects.create(
+            utilisateur=self.utilisateur,
+            livre=self.livre,
+            empreinte_appareil="ancien-appareil",
+        )
+        ancien_acces.derniere_revalidation = timezone.now() - timedelta(days=2)
+        ancien_acces.save(update_fields=["derniere_revalidation"])
+        AccesLecture.objects.create(
+            utilisateur=self.utilisateur,
+            livre=self.livre,
+            empreinte_appareil="appareil-actuel",
+        )
+        acces_appareil_le_plus_recent = AccesLecture.objects.create(
+            utilisateur=self.utilisateur,
+            livre=self.livre,
+            empreinte_appareil="autre-appareil",
+        )
+        acces_appareil_le_plus_recent.derniere_revalidation = (
+            timezone.now() + timedelta(seconds=1)
+        )
+        acces_appareil_le_plus_recent.save(update_fields=["derniere_revalidation"])
+
+        response = self.client.get("/api/library/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(
+            response.data[0]["id"],
+            acces_appareil_le_plus_recent.pk,
+        )
 
 
 class CloudinaryConfigurationTests(TestCase):

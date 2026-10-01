@@ -1,6 +1,7 @@
 import logging
 
 import requests
+from django.db.models import OuterRef, Subquery
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,7 +20,20 @@ class MaBibliothequeView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return AccesLecture.objects.filter(utilisateur=self.request.user, actif=True).select_related("livre")
+        acces_utilisateur = AccesLecture.objects.filter(
+            utilisateur=self.request.user,
+            actif=True,
+        )
+        acces_le_plus_recent = acces_utilisateur.filter(
+            livre_id=OuterRef("livre_id")
+        ).order_by("-derniere_revalidation", "-pk")
+        return (
+            acces_utilisateur.filter(
+                pk=Subquery(acces_le_plus_recent.values("pk")[:1])
+            )
+            .select_related("livre")
+            .order_by("-derniere_revalidation", "-pk")
+        )
 
 
 class RevaliderAccesView(APIView):
