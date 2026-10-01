@@ -1,0 +1,9 @@
+{
+  "name": "chariot",
+  "private": true,
+  "scripts": {
+    "dev": "cd chariot_frontend && npm run dev",
+    "build": "cd chariot_frontend && npm run build",
+    "lint": "cd chariot_frontend && npm run lint"
+  }
+}
