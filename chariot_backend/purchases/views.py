@@ -77,7 +77,7 @@ class AdminAchatUpdateView(generics.UpdateAPIView):
         # Reload the instance to see applied changes
         achat.refresh_from_db()
 
-        if previous_statut != achat.statut and achat.statut == Achat.Statut.PAYE:
+        if achat.statut == Achat.Statut.PAYE:
             # mark payment date if not already set
             if not achat.date_paiement:
                 achat.date_paiement = timezone.now()
@@ -94,7 +94,7 @@ class AdminAchatUpdateView(generics.UpdateAPIView):
         # etc. par l'admin). Tout accès de lecture existant pour ce livre
         # et cet utilisateur doit être révoqué, sinon la personne garde
         # la possibilité de lire le livre malgré le rejet de son achat.
-        elif previous_statut != achat.statut and achat.statut != Achat.Statut.PAYE:
+        elif previous_statut != achat.statut:
             AccesLecture.objects.filter(
                 utilisateur=achat.utilisateur,
                 livre=achat.livre,

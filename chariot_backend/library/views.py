@@ -52,12 +52,34 @@ class LireLivreView(APIView):
 
     def get(self, request, livre_id):
         empreinte = request.query_params.get("empreinte_appareil")
+        if not empreinte:
+            return Response(
+                {"detail": "empreinte_appareil requise"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        achat_paye = Achat.objects.filter(
+            utilisateur=request.user,
+            livre_id=livre_id,
+            statut=Achat.Statut.PAYE,
+        ).exists()
+        if not achat_paye:
+            raise Http404("Achat payé introuvable.")
+
         try:
             acces = AccesLecture.objects.select_related("livre").get(
                 utilisateur=request.user, livre_id=livre_id, empreinte_appareil=empreinte, actif=True
             )
         except AccesLecture.DoesNotExist:
-            raise Http404("Accès non trouvé ou révoqué.")
+            acces, _ = AccesLecture.objects.get_or_create(
+                utilisateur=request.user,
+                livre_id=livre_id,
+                empreinte_appareil=empreinte,
+                defaults={"actif": True},
+            )
+
+        if not acces.actif:
+            acces.revalider()
 
         if acces.doit_revalider:
             return Response(

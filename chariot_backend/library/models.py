@@ -38,5 +38,6 @@ class AccesLecture(models.Model):
         return timezone.now() - self.derniere_revalidation > DUREE_VALIDITE_HORS_LIGNE
 
     def revalider(self):
+        self.actif = True
         self.derniere_revalidation = timezone.now()
-        self.save(update_fields=["derniere_revalidation"])
+        self.save(update_fields=["actif", "derniere_revalidation"])

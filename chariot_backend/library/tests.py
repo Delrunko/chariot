@@ -6,7 +6,8 @@ import fitz
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
-from .views import LireLivreView
+from .models import AccesLecture
+from .views import LireLivreView, RevaliderAccesView
 
 
 class LireLivreViewTests(TestCase):
@@ -33,25 +34,86 @@ class LireLivreViewTests(TestCase):
             get_full_name=lambda: "Lecteur Test",
         )
         acces = SimpleNamespace(
+            pk=1,
+            actif=True,
             doit_revalider=False,
             livre=SimpleNamespace(fichier=FichierStocke()),
         )
-        acces_query = Mock()
-        acces_query.get.return_value = acces
+        acces_creation = Mock()
+        acces_creation.select_related.return_value.get.side_effect = [
+            AccesLecture.DoesNotExist,
+            acces,
+        ]
+        acces_creation.get_or_create.return_value = (acces, True)
         requete = APIRequestFactory().get(
             "/api/library/1/read/?empreinte_appareil=test"
         )
         force_authenticate(requete, user=utilisateur)
 
-        with patch(
-            "library.views.AccesLecture.objects.select_related",
-            return_value=acces_query,
+        with (
+            patch("library.views.Achat.objects.filter") as achats,
+            patch("library.views.AccesLecture.objects", acces_creation),
         ):
+            achats.return_value.exists.return_value = True
             reponse = LireLivreView.as_view()(requete, livre_id=1)
             pdf_filigrane = b"".join(reponse.streaming_content)
 
+        acces_creation.get_or_create.assert_called_once_with(
+            utilisateur=utilisateur,
+            livre_id=1,
+            empreinte_appareil="test",
+            defaults={"actif": True},
+        )
         self.assertEqual(reponse.status_code, 200)
         self.assertEqual(reponse["Content-Type"], "application/pdf")
         document = fitz.open(stream=pdf_filigrane, filetype="pdf")
         self.assertEqual(document.page_count, 1)
         document.close()
+
+    def test_read_does_not_grant_access_without_paid_purchase(self):
+        utilisateur = SimpleNamespace(is_authenticated=True)
+        requete = APIRequestFactory().get(
+            "/api/library/1/read/?empreinte_appareil=test"
+        )
+        force_authenticate(requete, user=utilisateur)
+
+        with patch("library.views.Achat.objects.filter") as achats:
+            achats.return_value.exists.return_value = False
+            reponse = LireLivreView.as_view()(requete, livre_id=1)
+
+        self.assertEqual(reponse.status_code, 404)
+
+    def test_revalidation_reactivates_existing_access_for_paid_purchase(self):
+        utilisateur = SimpleNamespace(is_authenticated=True)
+        acces = SimpleNamespace(revalider=Mock())
+        acces_manager = Mock()
+        acces_manager.get_or_create.return_value = (acces, False)
+        requete = APIRequestFactory().post(
+            "/api/library/1/revalider/",
+            {"empreinte_appareil": "test"},
+            format="json",
+        )
+        force_authenticate(requete, user=utilisateur)
+
+        with (
+            patch("library.views.Achat.objects.filter") as achats,
+            patch("library.views.AccesLecture.objects", acces_manager),
+            patch("library.views.AccesLectureSerializer") as serializer,
+        ):
+            achats.return_value.exists.return_value = True
+            serializer.return_value.data = {"id": 1}
+            reponse = RevaliderAccesView.as_view()(requete, livre_id=1)
+
+        acces.revalider.assert_called_once_with()
+        self.assertEqual(reponse.status_code, 200)
+
+    def test_revalider_reactivates_an_inactive_access(self):
+        acces = AccesLecture(actif=False)
+        acces.save = Mock()
+
+        acces.revalider()
+
+        self.assertTrue(acces.actif)
+        acces.save.assert_called_once_with(
+            update_fields=["actif", "derniere_revalidation"]
+        )
