@@ -149,6 +149,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'no-reply@localhost'
 
 CORS_ALLOWED_ORIGINS = [
+    'https://eds-doumbou.netlify.app',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:4173',
