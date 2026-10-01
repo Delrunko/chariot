@@ -154,7 +154,7 @@ if _use_cloudinary:
 
 STORAGES = {
     'default': {
-        'BACKEND': 'cloudinary_storage.storage.MediaCloudinaryStorage' if _use_cloudinary else 'django.core.files.storage.FileSystemStorage',
+        'BACKEND': 'catalog.storage.TypeAwareCloudinaryMediaStorage' if _use_cloudinary else 'django.core.files.storage.FileSystemStorage',
     },
     'staticfiles': {
         'BACKEND': 'whitenoise.storage.CompressedManifestStaticFilesStorage',

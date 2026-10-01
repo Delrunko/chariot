@@ -78,3 +78,8 @@ qui n'est pas persistant après un redémarrage ou un redéploiement de Render.
 Après avoir configuré Cloudinary, les fichiers déjà téléversés sur le disque
 éphémère de Render ne sont pas restaurés automatiquement : les PDF manquants
 doivent être téléversés de nouveau depuis l'administration.
+
+Le stockage Cloudinary envoie les PDF et documents en ressource `raw`, les
+images en ressource `image` et les vidéos en ressource `video`. Après le
+déploiement de ce réglage, rééditer chaque livre affecté, joindre de nouveau
+son PDF original et enregistrer pour remplacer l'ancienne ressource Cloudinary.

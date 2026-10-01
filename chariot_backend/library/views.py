@@ -112,7 +112,12 @@ class LireLivreView(APIView):
                 type(acces.livre.fichier.storage).__name__,
             )
             return Response(
-                {"detail": "Le fichier PDF est indisponible sur le stockage distant."},
+                {
+                    "detail": (
+                        "Le PDF est absent ou stocké dans un format incompatible. "
+                        "Demandez à l'administrateur de joindre à nouveau le fichier PDF original."
+                    )
+                },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,
             )
 

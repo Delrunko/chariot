@@ -164,7 +164,8 @@ class LireLivreViewTests(TestCase):
         self.assertEqual(reponse.status_code, 503)
         self.assertEqual(
             reponse.data["detail"],
-            "Le fichier PDF est indisponible sur le stockage distant.",
+            "Le PDF est absent ou stocké dans un format incompatible. "
+            "Demandez à l'administrateur de joindre à nouveau le fichier PDF original.",
         )
 
     def test_read_reports_invalid_pdf_without_server_error(self):

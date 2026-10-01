@@ -1165,8 +1165,10 @@ function AdminDashboardContent({ user, logout }) {
                         Fichier du livre
                         <input
                           type="file"
+                          accept="application/pdf,.pdf"
                           onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })}
                         />
+                        <small>PDF du livre — pour corriger un ancien fichier, sélectionnez de nouveau le PDF original.</small>
                       </label>
                     </div>
                     <div className="admin-form-actions">
@@ -1735,7 +1737,8 @@ function AdminDashboardContent({ user, logout }) {
                       </label>
                       <label>
                         Fichier du livre
-                        <input type="file" onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })} />
+                        <input type="file" accept="application/pdf,.pdf" onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })} />
+                        <small>PDF du livre — pour corriger un ancien fichier, sélectionnez de nouveau le PDF original.</small>
                         {bookFormErrors.fichier && <div className="field-error">{Array.isArray(bookFormErrors.fichier) ? bookFormErrors.fichier.join(', ') : bookFormErrors.fichier}</div>}
                       </label>
                       <div className="admin-form-actions">
