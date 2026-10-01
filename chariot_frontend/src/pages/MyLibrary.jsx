@@ -157,12 +157,6 @@ export default function MyLibrary() {
         });
       });
 
-    acces.forEach((access) => {
-      const id = access?.livre?.id;
-      if (id != null && !booksById.has(String(id))) {
-        booksById.set(String(id), access);
-      }
-    });
     return Array.from(booksById.values());
   }, [achats, acces]);
 
