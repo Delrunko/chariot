@@ -2,11 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { libraryService } from "../services/api";
 import { useAuth } from "../context/AuthContext";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfjsWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
 import "./ReaderModal.css";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export default function ReaderModal({ livreId, documentUrl = null, onClose, open = true }) {
   const navigate = useNavigate();
@@ -166,9 +162,16 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
     setRenduEnCours(true);
     conteneurRef.current.innerHTML = "";
 
-    pdfjsLib
-      .getDocument({ url: src })
-      .promise.then(async (pdf) => {
+    const afficherDocument = async () => {
+      try {
+        const [pdfjsLib, pdfjsWorker] = await Promise.all([
+          import("pdfjs-dist"),
+          import("pdfjs-dist/build/pdf.worker.mjs?url"),
+        ]);
+        if (annule) return;
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker.default;
+        const pdf = await pdfjsLib.getDocument({ url: src }).promise;
         if (annule) return;
         pdfDocRef.current = pdf;
         setNombrePages(pdf.numPages);
@@ -204,13 +207,14 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
           dessinerFiligrane(canvas);
           conteneurRef.current?.appendChild(canvas);
         }
-      })
-      .catch((err) => {
+      } catch (err) {
         if (!annule) setErreur(err.message || "Impossible d'afficher le document.");
-      })
-      .finally(() => {
+      } finally {
         if (!annule) setRenduEnCours(false);
-      });
+      }
+    };
+
+    void afficherDocument();
 
     return () => {
       annule = true;

@@ -1,18 +1,19 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth, isAdminRole } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import Home from "./pages/Home";
-import Catalog from "./pages/Catalog";
-import BookDetail from "./pages/BookDetail";
-import ServiceDetail from "./pages/ServiceDetail";
-import CategoryPage from "./pages/CategoryPage";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import MyLibrary from "./pages/MyLibrary";
-import About from "./pages/About";
-import ReaderModal from "./components/ReaderModal";
-import AdminDashboard from "./pages/AdminDashboard";
+const Home = lazy(() => import("./pages/Home"));
+const Catalog = lazy(() => import("./pages/Catalog"));
+const BookDetail = lazy(() => import("./pages/BookDetail"));
+const ServiceDetail = lazy(() => import("./pages/ServiceDetail"));
+const CategoryPage = lazy(() => import("./pages/CategoryPage"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const MyLibrary = lazy(() => import("./pages/MyLibrary"));
+const About = lazy(() => import("./pages/About"));
+const ReaderModal = lazy(() => import("./components/ReaderModal"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 // import VisitorAlert from "./components/VisitorAlert";
 import "./App.css";
 import "./components/reveal-and-cards.css";
@@ -88,7 +89,9 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <AppRoutes />
+        <Suspense fallback={<main className="app-loading">Chargement de la page...</main>}>
+          <AppRoutes />
+        </Suspense>
       </BrowserRouter>
     </AuthProvider>
   );

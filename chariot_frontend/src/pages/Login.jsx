@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useAuth, isAdminRole } from "../context/AuthContext";
+import PasswordField from "../components/PasswordField";
 import "./AuthForm.css";
 
 export default function Login() {
@@ -31,7 +32,13 @@ export default function Login() {
       <h1>Connexion</h1>
       {erreur && <p className="auth-error">{erreur}</p>}
       <input placeholder="Nom d'utilisateur" value={username} onChange={(e) => setUsername(e.target.value)} required />
-      <input type="password" placeholder="Mot de passe" value={password} onChange={(e) => setPassword(e.target.value)} required />
+      <PasswordField
+        placeholder="Mot de passe"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        autoComplete="current-password"
+        required
+      />
       <button type="submit" className="btn-primary">Se connecter</button>
       <p>Pas encore de compte ? <Link to="/inscription">Créer un compte</Link></p>
     </form>

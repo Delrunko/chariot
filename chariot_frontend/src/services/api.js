@@ -62,6 +62,16 @@ export const catalogService = {
   getBooks: (params = {}) => api.get("/books/", { params }),
   getBook: (slug) => api.get(`/books/${slug}/`),
   getVitrine: () => api.get("/books/vitrine/"),
+  visitCounter: async () => {
+    const response = await fetch(`${API_BASE_URL}/visit-counter/`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      throw new Error(`Le compteur de visites est indisponible (${response.status}).`);
+    }
+    return response.json();
+  },
 };
 
 export const serviceService = {

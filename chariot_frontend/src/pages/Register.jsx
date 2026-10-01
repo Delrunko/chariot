@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { authService } from "../services/api";
+import PasswordField from "../components/PasswordField";
 import "./AuthForm.css";
 
 export default function Register() {
@@ -28,7 +29,14 @@ export default function Register() {
       <input name="username" placeholder="Nom d'utilisateur" onChange={handleChange} required />
       <input name="email" type="email" placeholder="Email" onChange={handleChange} required />
       <input name="telephone" placeholder="Numéro Orange Money" onChange={handleChange} required />
-      <input name="password" type="password" placeholder="Mot de passe" onChange={handleChange} required />
+      <PasswordField
+        name="password"
+        placeholder="Mot de passe"
+        value={form.password}
+        onChange={handleChange}
+        autoComplete="new-password"
+        required
+      />
       <button type="submit" className="btn-primary">S'inscrire</button>
       <p>Déjà un compte ? <Link to="/connexion">Se connecter</Link></p>
     </form>

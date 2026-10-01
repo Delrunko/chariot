@@ -1,30 +1,65 @@
-import { useEffect, useState, useRef } from "react";
-import api from "../services/api";
+import { useEffect, useState } from "react";
+import { catalogService } from "../services/api";
 import "./WebCounter.css";
 
+let visitCounterRequest;
+
+function getCachedCount() {
+  try {
+    const storedCount = localStorage.getItem("eds_visit_count");
+    if (storedCount === null) return null;
+    const count = Number(storedCount);
+    return Number.isSafeInteger(count) && count >= 0 ? count : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function WebCounter({ className = "" }) {
-  const [count, setCount] = useState(null);
-  const hasFetched = useRef(false); // verrou anti double appel (Strict Mode)
+  const [count, setCount] = useState(getCachedCount);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (hasFetched.current) return;
-    hasFetched.current = true;
+    let active = true;
+    if (!visitCounterRequest) {
+      visitCounterRequest = catalogService.visitCounter().catch((requestError) => {
+        visitCounterRequest = null;
+        throw requestError;
+      });
+    }
 
-    (async () => {
-      try {
-        const res = await api.get("/visit-counter/");
-        setCount(res.data.count);
-      } catch {
-        setCount(null);
-      }
-    })();
+    visitCounterRequest
+      .then((data) => {
+        if (!Number.isSafeInteger(data.count) || data.count < 0) {
+          throw new Error("Le serveur a renvoyé un compteur de visites invalide.");
+        }
+        if (active) {
+          setCount(data.count);
+          setError("");
+          try {
+            localStorage.setItem("eds_visit_count", String(data.count));
+          } catch (storageError) {
+            setError(storageError.message);
+          }
+        }
+      })
+      .catch((requestError) => {
+        if (active) setError(requestError.message);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
-  if (count === null) return null;
-
   return (
-    <div className={`web-counter ${className}`}>
-      <span className="web-counter-number">{count}</span>
+    <div
+      className={`web-counter ${className}`}
+      title={error || "Nombre de visites du site"}
+      aria-label={count === null ? "Nombre de visites indisponible" : `${count} visites`}
+      aria-live="polite"
+    >
+      <span className="web-counter-number">{count ?? "—"}</span>
       <span className="web-counter-label">visites</span>
     </div>
   );

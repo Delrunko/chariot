@@ -2,6 +2,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
   color: #fff;
   font-size: 0.85rem;
 }
@@ -9,4 +10,26 @@
 .web-counter-number {
   font-weight: 800;
   color: var(--gold, #d4af37);
+}
+
+@media (max-width: 860px) {
+  .web-counter-top {
+    order: 2;
+    font-size: 0.75rem;
+  }
+
+  .navbar-logo {
+    order: 1;
+  }
+
+  .navbar-burger {
+    order: 3;
+  }
+}
+
+@media (max-width: 360px) {
+  .web-counter-top {
+    gap: 3px;
+    font-size: 0.7rem;
+  }
 }
