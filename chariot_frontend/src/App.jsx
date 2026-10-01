@@ -65,6 +65,7 @@ function AppRoutes() {
           <Route path="/ma-bibliotheque" element={<MyLibrary />} />
           <Route path="/lire/:id" element={<ReaderModal open={true} />} />
           <Route path="/a-propos" element={<About />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
       <Footer />

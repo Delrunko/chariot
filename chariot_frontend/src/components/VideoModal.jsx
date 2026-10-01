@@ -25,14 +25,14 @@ export default function VideoModal({ open = true, videoUrl = null, title = "Vid√
 
         <div style={{padding:12}}>
           {videoUrl ? (
-            /\* If it's an iframe-capable URL, display in iframe; otherwise use <video> *\/
-            (/(youtube|vimeo|youtu\.be|watch\?v=)/i.test(videoUrl) ? (
+            /(youtube|vimeo|youtu\.be|watch\?v=)/i.test(videoUrl) ? (
               <div style={{position:'relative', paddingBottom:'56.25%', height:0}}>
                 <iframe title={title} src={videoUrl} style={{position:'absolute', top:0, left:0, width:'100%', height:'100%'}} frameBorder="0" allowFullScreen />
               </div>
             ) : (
               <video controls src={videoUrl} style={{width:'100%'}} />
-            )) : (
+            )
+          ) : (
             <div style={{padding:20, textAlign:'center'}}>
               <p style={{margin:0}}>Vid√©o introuvable ou inaccessible.</p>
             </div>

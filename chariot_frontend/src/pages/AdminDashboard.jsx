@@ -32,6 +32,15 @@ const SIDEBAR_SECTIONS = [
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
+
+  if (!user || user.role !== "admin") {
+    return <Navigate to="/connexion" replace />;
+  }
+
+  return <AdminDashboardContent user={user} logout={logout} />;
+}
+
+function AdminDashboardContent({ user, logout }) {
   const [stats, setStats] = useState({
     total_categories: 0,
     total_sous_categories: 0,
@@ -102,10 +111,6 @@ export default function AdminDashboard() {
   useEffect(() => {
     loadAdminData();
   }, []);
-
-  if (!user || user.role !== "admin") {
-    return <Navigate to="/connexion" replace />;
-  }
 
   const handleCategorySubmit = async (event) => {
     event.preventDefault();
