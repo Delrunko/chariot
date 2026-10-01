@@ -16,6 +16,7 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
   const [src, setSrc] = useState("");
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState("");
+  const [retryCount, setRetryCount] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
   const [nombrePages, setNombrePages] = useState(0);
   const [renduEnCours, setRenduEnCours] = useState(false);
@@ -117,7 +118,7 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
       isMounted = false;
       libererRessourcesPdf();
     };
-  }, [resolvedId, open, documentUrl]);
+  }, [resolvedId, open, documentUrl, retryCount]);
 
   // Build the watermark text shown across every page: "Nom — Numéro".
   // Falls back gracefully if either piece of info is missing.
@@ -307,7 +308,22 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
 
         {statusMessage && <div className="reader-state">{statusMessage}</div>}
         {chargement && !statusMessage && <div className="reader-state">Chargement du document…</div>}
-        {erreur && <div className="reader-state reader-error">{erreur}</div>}
+        {erreur && (
+          <div className="reader-state reader-error">
+            <p>{erreur}</p>
+            <button
+              type="button"
+              className="reader-retry"
+              onClick={() => {
+                setErreur("");
+                setChargement(true);
+                setRetryCount((count) => count + 1);
+              }}
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
 
         {/* PDF rendering (rendered first so the document is visible immediately) */}
         {!chargement && !erreur && src && (

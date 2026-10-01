@@ -1,4 +1,3 @@
-import os
 import time
 
 import requests
@@ -12,12 +11,12 @@ class TypeAwareCloudinaryMediaStorage(MediaCloudinaryStorage):
     def _get_resource_type(self, name):
         return get_cloudinary_resource_type(name)
 
-    def _private_download_url(self, public_id, file_format):
+    def _private_download_url(self, public_id):
         from cloudinary.utils import private_download_url
 
         return private_download_url(
             public_id,
-            file_format,
+            None,
             resource_type="raw",
             type="upload",
             expires_at=int(time.time()) + 60,
@@ -35,18 +34,18 @@ class TypeAwareCloudinaryMediaStorage(MediaCloudinaryStorage):
             ):
                 raise
 
-            public_id, extension = os.path.splitext(
-                self._prepend_prefix(self._normalise_name(name))
+            public_id = self._prepend_prefix(
+                self._normalise_name(name)
             )
-            if not extension:
-                raise
-
-            signed_url = self._private_download_url(
-                public_id,
-                extension.lstrip("."),
-            )
+            signed_url = self._private_download_url(public_id)
             response = requests.get(signed_url, timeout=(5, 30))
-            response.raise_for_status()
+            try:
+                response.raise_for_status()
+            except requests.HTTPError:
+                raise requests.HTTPError(
+                    f"Cloudinary private download failed with status {response.status_code}.",
+                    response=response,
+                ) from None
             fichier = ContentFile(response.content)
             fichier.name = name
             fichier.mode = mode

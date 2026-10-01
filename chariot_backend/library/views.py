@@ -135,8 +135,8 @@ class LireLivreView(APIView):
                 )
             else:
                 detail = (
-                    "Le PDF est absent ou stocké dans un format incompatible. "
-                    "Demandez à l'administrateur de joindre à nouveau le fichier PDF original."
+                    "Le PDF n'a pas pu être récupéré depuis le stockage. "
+                    "L'administrateur doit vérifier son accès et son emplacement."
                 )
             return Response(
                 {"detail": detail},
@@ -153,8 +153,8 @@ class LireLivreView(APIView):
             return Response(
                 {
                     "detail": (
-                        "Le PDF est absent ou stocké dans un format incompatible. "
-                        "Demandez à l'administrateur de joindre à nouveau le fichier PDF original."
+                        "Le PDF n'a pas pu être récupéré depuis le stockage. "
+                        "L'administrateur doit vérifier son accès et son emplacement."
                     )
                 },
                 status=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -220,8 +220,8 @@ class LireLivreViewTests(TestCase):
         self.assertEqual(reponse.status_code, 503)
         self.assertEqual(
             reponse.data["detail"],
-            "Le PDF est absent ou stocké dans un format incompatible. "
-            "Demandez à l'administrateur de joindre à nouveau le fichier PDF original.",
+            "Le PDF n'a pas pu être récupéré depuis le stockage. "
+            "L'administrateur doit vérifier son accès et son emplacement.",
         )
 
     def test_read_reports_invalid_pdf_without_server_error(self):

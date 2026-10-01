@@ -49,7 +49,7 @@ class CloudinaryResourceTypeTests(SimpleTestCase):
 
 
 class CloudinaryPrivatePdfStorageTests(SimpleTestCase):
-    def test_private_download_url_is_signed_and_short_lived(self):
+    def test_private_download_url_uses_raw_public_id_with_extension(self):
         storage = TypeAwareCloudinaryMediaStorage()
 
         with (
@@ -60,14 +60,13 @@ class CloudinaryPrivatePdfStorageTests(SimpleTestCase):
             ) as private_download_url,
         ):
             signed_url = storage._private_download_url(
-                "media/fichiers_proteges/guide",
-                "pdf",
+                "media/fichiers_proteges/guide.pdf",
             )
 
         self.assertEqual(signed_url, "https://signed.example/private.pdf")
         private_download_url.assert_called_once_with(
-            "media/fichiers_proteges/guide",
-            "pdf",
+            "media/fichiers_proteges/guide.pdf",
+            None,
             resource_type="raw",
             type="upload",
             expires_at=1060,
@@ -100,14 +99,45 @@ class CloudinaryPrivatePdfStorageTests(SimpleTestCase):
         self.assertEqual(fichier.read(), b"%PDF-1.4\nprivate PDF")
         self.assertEqual(fichier.name, "fichiers_proteges/guide.pdf")
         private_download_url.assert_called_once_with(
-            "media/fichiers_proteges/guide",
-            "pdf",
+            "media/fichiers_proteges/guide.pdf",
         )
         get.assert_called_once_with(
             "https://signed.example/private.pdf",
             timeout=(5, 30),
         )
         cloudinary_response.raise_for_status.assert_called_once_with()
+
+    def test_signed_download_error_does_not_expose_signed_url(self):
+        unauthorized = requests.HTTPError(
+            response=Mock(status_code=requests.codes.unauthorized)
+        )
+        cloudinary_response = Mock(
+            status_code=requests.codes.not_found,
+            content=b"",
+        )
+        cloudinary_response.raise_for_status.side_effect = requests.HTTPError(
+            response=cloudinary_response
+        )
+        signed_url = "https://signed.example/private.pdf?signature=secret"
+        storage = TypeAwareCloudinaryMediaStorage()
+
+        with (
+            patch(
+                "catalog.storage.MediaCloudinaryStorage._open",
+                side_effect=unauthorized,
+            ),
+            patch.object(storage, "_private_download_url", return_value=signed_url),
+            patch("catalog.storage.requests.get", return_value=cloudinary_response),
+            self.assertRaises(requests.HTTPError) as raised,
+        ):
+            storage._open("fichiers_proteges/guide.pdf")
+
+        self.assertEqual(
+            str(raised.exception),
+            "Cloudinary private download failed with status 404.",
+        )
+        self.assertNotIn("signature=secret", str(raised.exception))
+        self.assertIs(raised.exception.response, cloudinary_response)
 
     def test_non_unauthorized_storage_errors_are_not_retried(self):
         forbidden = requests.HTTPError(
