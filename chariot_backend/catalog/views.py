@@ -2,6 +2,7 @@
 from rest_framework import viewsets, permissions
 from django.db.models.deletion import ProtectedError
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from .models import Categorie, SousCategorie, Livre, Testimonial, Service, ServiceImage, Quote, VisitCounter
 from .serializers import (
@@ -55,6 +56,7 @@ class LivreViewSet(viewsets.ModelViewSet):
     queryset = Livre.objects.filter(disponible=True).select_related("sous_categorie__categorie")
     permission_classes = [IsAdminOrReadOnly]
     lookup_field = "slug"
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def get_serializer_class(self):
         if self.action in {"create", "update", "partial_update"}:

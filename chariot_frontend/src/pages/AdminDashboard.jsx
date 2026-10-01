@@ -214,15 +214,19 @@ function AdminDashboardContent({ user, logout }) {
       }
 
       if (editingBookId) {
-        await api.patch(`/books/${editingBookId}/`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        setMessage("Livre modifié avec succès.");
+        await api.patch(`/books/${editingBookId}/`, formData);
+        setMessage(
+          bookForm.fichier
+            ? `Livre modifié. PDF téléversé : ${bookForm.fichier.name}`
+            : "Livre modifié avec succès."
+        );
       } else {
-        await api.post("/books/", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
-        setMessage("Livre ajouté avec succès.");
+        await api.post("/books/", formData);
+        setMessage(
+          bookForm.fichier
+            ? `Livre ajouté. PDF téléversé : ${bookForm.fichier.name}`
+            : "Livre ajouté avec succès."
+        );
       }
 
       setBookForm(emptyBookForm);
@@ -1168,6 +1172,11 @@ function AdminDashboardContent({ user, logout }) {
                           accept="application/pdf,.pdf"
                           onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })}
                         />
+                        {bookForm.fichier && (
+                          <small className="book-upload-selection">
+                            Sélectionné : {bookForm.fichier.name} ({(bookForm.fichier.size / 1024 / 1024).toFixed(2)} Mo)
+                          </small>
+                        )}
                         <small>PDF du livre — pour corriger un ancien fichier, sélectionnez de nouveau le PDF original.</small>
                       </label>
                     </div>
@@ -1738,6 +1747,11 @@ function AdminDashboardContent({ user, logout }) {
                       <label>
                         Fichier du livre
                         <input type="file" accept="application/pdf,.pdf" onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })} />
+                        {bookForm.fichier && (
+                          <small className="book-upload-selection">
+                            Sélectionné : {bookForm.fichier.name} ({(bookForm.fichier.size / 1024 / 1024).toFixed(2)} Mo)
+                          </small>
+                        )}
                         <small>PDF du livre — pour corriger un ancien fichier, sélectionnez de nouveau le PDF original.</small>
                         {bookFormErrors.fichier && <div className="field-error">{Array.isArray(bookFormErrors.fichier) ? bookFormErrors.fichier.join(', ') : bookFormErrors.fichier}</div>}
                       </label>
