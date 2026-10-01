@@ -47,10 +47,6 @@ class LireLivreView(APIView):
     d'URL publique directe vers le fichier stocké — le PDF est filigrané
     à la volée avec le nom et le numéro de l'acheteur.
 
-    NOTE TEMPORAIRE : le try/except autour de generer_pdf_filigrane a été
-    retiré pour laisser l'erreur remonter et voir la traceback complète
-    dans le terminal Django. Une fois le bug identifié et corrigé, on
-    pourra remettre un except plus ciblé si besoin.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -73,9 +69,13 @@ class LireLivreView(APIView):
         nom_complet = utilisateur.get_full_name() or utilisateur.username
         telephone = utilisateur.telephone or ""
 
-        pdf_filigrane = generer_pdf_filigrane(
-            acces.livre.fichier.path, nom_complet, telephone
-        )
+        if not acces.livre.fichier:
+            raise Http404("Fichier PDF introuvable.")
+
+        with acces.livre.fichier.open("rb") as fichier:
+            pdf_filigrane = generer_pdf_filigrane(
+                fichier.read(), nom_complet, telephone
+            )
 
         return FileResponse(
             pdf_filigrane,

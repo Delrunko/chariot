@@ -2,7 +2,7 @@ import io
 import fitz  # PyMuPDF
 
 
-def generer_pdf_filigrane(chemin_fichier, nom_complet, telephone):
+def generer_pdf_filigrane(contenu_pdf, nom_complet, telephone):
     """
     Ouvre le PDF source, applique un filigrane diagonal répété sur chaque
     page avec le nom et le numéro de l'acheteur, et renvoie le résultat
@@ -10,7 +10,7 @@ def generer_pdf_filigrane(chemin_fichier, nom_complet, telephone):
     """
     texte = f"{nom_complet} — {telephone}" if telephone else nom_complet
 
-    doc = fitz.open(chemin_fichier)
+    doc = fitz.open(stream=contenu_pdf, filetype="pdf")
 
     angle_degres = 45
     matrice_rotation = fitz.Matrix(angle_degres)
