@@ -7,6 +7,7 @@ import BookCard from "../components/BookCard";
 import RevealOnScroll from "../components/RevealOnScroll";
 import ServiceCard from "../components/ServiceCard";
 import "./Home.css";
+import "./CategoryPage.css";
 
 export default function CategoryPage() {
   const { slug } = useParams();
@@ -183,7 +184,7 @@ export default function CategoryPage() {
   };
 
   return (
-    <div className="catalog-page">
+    <div className="catalog-page category-page">
       <header className="catalog-header">
         <div className="catalog-header-copy">
           <span className="eyebrow">Catalogue</span>
@@ -200,7 +201,11 @@ export default function CategoryPage() {
       {!loading && displayed.length > 0 && (
         <div className="catalog-grid">
           {displayed.map((it, idx) => (
-            <RevealOnScroll key={it.id} delai={(idx % 8) * 60}>
+            <RevealOnScroll
+              key={`${it.type_categorie === "service" ? "service" : "book"}-${it.id}`}
+              delai={(idx % 8) * 60}
+              className="category-grid-reveal"
+            >
               <div className="catalog-grid-item-with-checkbox">
                 <label className="item-select-checkbox">
                   <input type="checkbox" checked={selectedItems.hasOwnProperty(it.id)} onChange={() => toggleSelect(it.id, it)} />
