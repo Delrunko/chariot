@@ -65,3 +65,16 @@ Voir le cahier des charges §4.3. Le modèle `AccesLecture` (app `library`)
 implémente la revalidation périodique (21 jours par défaut, modifiable dans
 `library/models.py` — `DUREE_VALIDITE_HORS_LIGNE`). Le chiffrement du contenu
 mis en cache côté PWA reste à implémenter côté frontend (itération suivante).
+
+## Stockage des fichiers en production
+
+Les PDF et les autres médias doivent être stockés de façon persistante sur
+Cloudinary en production. Dans les variables d'environnement du service Render,
+configurer soit `CLOUDINARY_URL` (`cloudinary://<api_key>:<api_secret>@<cloud_name>`),
+soit les trois variables `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY` et
+`CLOUDINARY_API_SECRET`. Sans ces paramètres, Django utilise le stockage local,
+qui n'est pas persistant après un redémarrage ou un redéploiement de Render.
+
+Après avoir configuré Cloudinary, les fichiers déjà téléversés sur le disque
+éphémère de Render ne sont pas restaurés automatiquement : les PDF manquants
+doivent être téléversés de nouveau depuis l'administration.

@@ -1,13 +1,61 @@
 import io
 from types import SimpleNamespace
 from unittest.mock import Mock, mock_open, patch
+from urllib.parse import quote
 
 import fitz
+from django.core.exceptions import ImproperlyConfigured
 from django.test import TestCase
 from rest_framework.test import APIRequestFactory, force_authenticate
 
+from chariot_backend.settings import _cloudinary_config_from_env
 from .models import AccesLecture
 from .views import LireLivreView, RevaliderAccesView
+
+
+class CloudinaryConfigurationTests(TestCase):
+    def test_cloudinary_url_is_parsed_for_media_storage(self):
+        config = _cloudinary_config_from_env(
+            {
+                "CLOUDINARY_URL": (
+                    "cloudinary://api-key:"
+                    f"{quote('secret/with+symbols', safe='')}@my-cloud"
+                )
+            }
+        )
+
+        self.assertEqual(
+            config,
+            {
+                "cloud_name": "my-cloud",
+                "api_key": "api-key",
+                "api_secret": "secret/with+symbols",
+            },
+        )
+
+    def test_individual_cloudinary_variables_are_supported(self):
+        config = _cloudinary_config_from_env(
+            {
+                "CLOUDINARY_CLOUD_NAME": "my-cloud",
+                "CLOUDINARY_API_KEY": "api-key",
+                "CLOUDINARY_API_SECRET": "api-secret",
+            }
+        )
+
+        self.assertEqual(
+            config,
+            {
+                "cloud_name": "my-cloud",
+                "api_key": "api-key",
+                "api_secret": "api-secret",
+            },
+        )
+
+    def test_partial_cloudinary_configuration_fails_loudly(self):
+        with self.assertRaisesMessage(
+            ImproperlyConfigured, "Configure CLOUDINARY_URL"
+        ):
+            _cloudinary_config_from_env({"CLOUDINARY_CLOUD_NAME": "my-cloud"})
 
 
 class LireLivreViewTests(TestCase):

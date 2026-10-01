@@ -100,13 +100,16 @@ class LireLivreView(APIView):
             raise Http404("Fichier PDF introuvable.")
 
         try:
-            with acces.livre.fichier.open("rb") as fichier:
+            fichier_livre = acces.livre.fichier
+            with fichier_livre.open("rb") as fichier:
                 contenu_pdf = fichier.read()
         except (OSError, requests.exceptions.RequestException):
             logger.exception(
-                "Unable to retrieve purchased PDF (user=%s, book=%s).",
+                "Unable to retrieve purchased PDF (user=%s, book=%s, file=%s, storage=%s).",
                 request.user.pk,
                 livre_id,
+                getattr(acces.livre.fichier, "name", ""),
+                type(acces.livre.fichier.storage).__name__,
             )
             return Response(
                 {"detail": "Le fichier PDF est indisponible sur le stockage distant."},

@@ -4,6 +4,9 @@ Django settings for chariot_backend project.
 import os
 from pathlib import Path
 from datetime import timedelta
+from urllib.parse import unquote, urlparse
+
+from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 import dj_database_url
 
@@ -113,12 +116,39 @@ USE_TZ = True
 STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-_use_cloudinary = _CLOUDINARY_AVAILABLE and bool(os.environ.get('CLOUDINARY_CLOUD_NAME'))
+
+def _cloudinary_config_from_env(environ):
+    cloudinary_url = environ.get('CLOUDINARY_URL')
+    url_config = {}
+    if cloudinary_url:
+        parsed_url = urlparse(cloudinary_url)
+        if parsed_url.scheme != 'cloudinary' or not parsed_url.hostname:
+            raise ImproperlyConfigured('CLOUDINARY_URL must be a valid cloudinary:// URL.')
+        url_config = {
+            'cloud_name': parsed_url.hostname,
+            'api_key': unquote(parsed_url.username or ''),
+            'api_secret': unquote(parsed_url.password or ''),
+        }
+
+    config = {
+        'cloud_name': environ.get('CLOUDINARY_CLOUD_NAME') or url_config.get('cloud_name'),
+        'api_key': environ.get('CLOUDINARY_API_KEY') or url_config.get('api_key'),
+        'api_secret': environ.get('CLOUDINARY_API_SECRET') or url_config.get('api_secret'),
+    }
+    configured_values = [bool(value) for value in config.values()]
+    if any(configured_values) and not all(configured_values):
+        raise ImproperlyConfigured(
+            'Configure CLOUDINARY_URL or all three CLOUDINARY_CLOUD_NAME, '
+            'CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET variables.'
+        )
+    return config
+
+
+_cloudinary_config = _cloudinary_config_from_env(os.environ)
+_use_cloudinary = _CLOUDINARY_AVAILABLE and all(_cloudinary_config.values())
 if _use_cloudinary:
     cloudinary.config(
-        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
-        api_key=os.environ.get('CLOUDINARY_API_KEY'),
-        api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+        **_cloudinary_config,
         secure=True,
     )
 
