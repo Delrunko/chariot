@@ -163,7 +163,7 @@ STORAGES = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+DEFAULT_AUTO_FIELD = 'django.models.BigAutoField'
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': ('rest_framework_simplejwt.authentication.JWTAuthentication',),
@@ -178,21 +178,31 @@ SIMPLE_JWT = {
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = 'no-reply@localhost'
 
+# --- CONFIGURATION CORS & CSRF (CORRIGÉE) ---
+
+# Liste des origines autorisées pour les requêtes cross-origin (Frontend -> Backend)
 CORS_ALLOWED_ORIGINS = [
-    'https://eds-doumbou.netlify.app',
-    'http://localhost:5173',
+    'https://99853f1e.chariot-5p9.pages.dev',  # Nouveau site Cloudflare Pages
+    'https://eds-doumbou.netlify.app',         # Ancien site Netlify (transition)
+    'http://localhost:5173',                   # Développement local Vite
     'http://127.0.0.1:5173',
     'http://localhost:4173',
     'http://127.0.0.1:4173',
 ]
+
+# Ajout dynamique via variable d'environnement si nécessaire
 _cors_extra = os.environ.get('CORS_EXTRA_ORIGINS', '')
 if _cors_extra:
     CORS_ALLOWED_ORIGINS += [o.strip() for o in _cors_extra.split(',') if o.strip()]
 
+# Liste des origines autorisées pour les formulaires POST (Protection CSRF)
 CSRF_TRUSTED_ORIGINS = [
-    'https://eds-doumbou.netlify.app',
-    'https://chariot-backend-lmms.onrender.com',
+    'https://99853f1e.chariot-5p9.pages.dev',  # Nouveau site Cloudflare Pages
+    'https://eds-doumbou.netlify.app',         # Ancien site Netlify
+    'https://chariot-backend-lmms.onrender.com', # Votre backend Render
 ]
+
+# Ajout dynamique via variable d'environnement si nécessaire
 _csrf_extra = os.environ.get('CSRF_EXTRA_ORIGINS', '')
 if _csrf_extra:
     CSRF_TRUSTED_ORIGINS += [o.strip() for o in _csrf_extra.split(',') if o.strip()]
