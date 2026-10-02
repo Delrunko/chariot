@@ -182,12 +182,20 @@ DEFAULT_FROM_EMAIL = 'no-reply@localhost'
 
 # Liste des origines autorisées pour les requêtes cross-origin (Frontend -> Backend)
 CORS_ALLOWED_ORIGINS = [
-    'https://99853f1e.chariot-5p9.pages.dev',  # Nouveau site Cloudflare Pages
+    'https://1273e244.chariot-5p9.pages.dev',   # Déploiement Cloudflare Pages actuel
+    'https://99853f1e.chariot-5p9.pages.dev',  # Ancien déploiement Cloudflare Pages
+    'https://chariot-5p9.pages.dev',           # Domaine de production Cloudflare Pages
     'https://eds-doumbou.netlify.app',         # Ancien site Netlify (transition)
     'http://localhost:5173',                   # Développement local Vite
     'http://127.0.0.1:5173',
     'http://localhost:4173',
     'http://127.0.0.1:4173',
+]
+
+# Cloudflare crée de nouveaux sous-domaines pour les aperçus de déploiement.
+# Restreindre le motif au projet Pages plutôt que d'autoriser tous les domaines pages.dev.
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https://[a-z0-9-]+\.chariot-5p9\.pages\.dev$',
 ]
 
 # Ajout dynamique via variable d'environnement si nécessaire
@@ -197,7 +205,10 @@ if _cors_extra:
 
 # Liste des origines autorisées pour les formulaires POST (Protection CSRF)
 CSRF_TRUSTED_ORIGINS = [
-    'https://99853f1e.chariot-5p9.pages.dev',  # Nouveau site Cloudflare Pages
+    'https://1273e244.chariot-5p9.pages.dev',   # Déploiement Cloudflare Pages actuel
+    'https://99853f1e.chariot-5p9.pages.dev',  # Ancien déploiement Cloudflare Pages
+    'https://chariot-5p9.pages.dev',           # Domaine de production Cloudflare Pages
+    'https://*.chariot-5p9.pages.dev',         # Aperçus Cloudflare Pages du projet
     'https://eds-doumbou.netlify.app',         # Ancien site Netlify
     'https://chariot-backend-lmms.onrender.com', # Votre backend Render
 ]

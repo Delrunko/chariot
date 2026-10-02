@@ -1,9 +1,14 @@
 {
   "name": "chariot",
   "private": true,
+  "packageManager": "npm@11.11.1",
+  "workspaces": [
+    "chariot_frontend"
+  ],
   "scripts": {
-    "dev": "cd chariot_frontend && npm run dev",
-    "build": "cd chariot_frontend && npm run build",
-    "lint": "cd chariot_frontend && npm run lint"
+    "dev": "npm --workspace chariot_frontend run dev",
+    "build": "npm --workspace chariot_frontend run build",
+    "lint": "npm --workspace chariot_frontend run lint",
+    "preview": "npm --workspace chariot_frontend run preview"
   }
 }
