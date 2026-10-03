@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 import "./HomeSections.css";
 
 /* ---------- Chiffres / Confiance ---------- */
@@ -160,9 +162,6 @@ export function ImmersiveSection() {
 }
 
 /* ---------- Témoignages ---------- */
-import { useEffect, useState } from "react";
-import { testimonialsService } from "../services/api";
-
 export function TestimonialsSection() {
   const [temoignages, setTemoignages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -181,14 +180,25 @@ export function TestimonialsSection() {
 
   useEffect(() => {
     let mounted = true;
-    testimonialsService
-      .getTestimonials()
-      .then((res) => {
-        if (!mounted) return;
-        const data = res.data || res;
-        setTemoignages(data);
+    supabase
+      .from("testimonials")
+      .select("id, name, message, rating, created_at")
+      .eq("approved", true)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (mounted) {
+          setTemoignages(
+            (data ?? []).map((testimonial) => ({
+              ...testimonial,
+              nom: testimonial.name,
+            })),
+          );
+        }
       })
-      .catch(() => {})
+      .catch((error) => {
+        console.error("Impossible de charger les témoignages depuis Supabase.", error);
+      })
       .finally(() => mounted && setLoading(false));
     return () => (mounted = false);
   }, []);
@@ -214,16 +224,28 @@ export function TestimonialsSection() {
 
     setSubmitting(true);
     try {
-      const payload = { nom: nom.trim(), message: texte.trim(), rating };
-      const created = await testimonialsService.createTestimonial(payload);
-      setTemoignages((s) => [created, ...s]);
+      const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const { error } = await supabase.from("testimonials").insert({
+        name: nom.trim(),
+        message: texte.trim(),
+        rating,
+        approved: false,
+        user_id: userId,
+      });
+      if (error) {
+        throw error;
+      }
       setNom("");
       setTexte("");
       setRating(5);
-      setSuccess("Merci ! Votre témoignage a été publié.");
+      setSuccess("Merci ! Votre témoignage a été envoyé pour validation.");
     } catch (err) {
       console.error(err);
-      setFormError("Échec lors de l'envoi du témoignage. Réessayez plus tard.");
+      setFormError(
+        err instanceof Error && err.message
+          ? err.message
+          : "L'envoi n'est pas encore autorisé par la configuration Supabase. Réessayez plus tard.",
+      );
     } finally {
       setSubmitting(false);
     }

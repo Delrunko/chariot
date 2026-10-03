@@ -67,7 +67,7 @@
 .coverflow-floor {
   height: 3px;
   background: linear-gradient(90deg, transparent, var(--safety) 15%, var(--safety) 85%, transparent);
-  box-shadow: 0 0 16px rgba(211, 224, 0, 0.5);
+  box-shadow: 0 0 16px rgba(195, 39, 43, 0.42);
 }
 
 /* La liste est triplée : on ne défile que sur le premier tiers,

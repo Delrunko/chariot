@@ -25,7 +25,7 @@
 .animated-background-glow-1 {
   width: 420px;
   height: 420px;
-  background: radial-gradient(circle, rgba(212, 175, 55, 0.55), transparent 70%);
+  background: radial-gradient(circle, rgba(195, 39, 43, 0.5), transparent 70%);
   top: -10%;
   left: -8%;
   animation: animated-background-drift-1 22s ease-in-out infinite alternate;

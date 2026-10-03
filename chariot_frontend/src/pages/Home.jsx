@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { catalogService } from "../services/api";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
 import BookShelfCarousel from "../components/BookShelfCarousel";
 import {
   StatsSection,
@@ -21,10 +22,44 @@ export default function Home() {
   const [chargement, setChargement] = useState(true);
 
   useEffect(() => {
-    catalogService
-      .getVitrine()
-      .then(({ data }) => setLivres(data))
-      .finally(() => setChargement(false));
+    let active = true;
+
+    const loadFeaturedBooks = async () => {
+      const { data, error } = await supabase
+        .from("books")
+        .select("id, title, slug, cover_path, price, featured, added_at")
+        .eq("available", true)
+        .eq("featured", true)
+        .order("added_at", { ascending: false })
+        .limit(6);
+
+      if (error) throw error;
+
+      if (active) {
+        setLivres(
+          (data ?? []).map((book) => ({
+            ...book,
+            titre: book.title,
+            couverture: getStoragePublicUrl("covers", book.cover_path),
+            prix: book.price,
+            date_ajout: book.added_at,
+          })),
+        );
+      }
+    };
+
+    loadFeaturedBooks()
+      .catch((error) => {
+        console.error("Impossible de charger la vitrine depuis Supabase.", error);
+        if (active) setLivres([]);
+      })
+      .finally(() => {
+        if (active) setChargement(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (

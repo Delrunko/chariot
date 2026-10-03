@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { libraryService, purchaseService, serviceService } from "../services/api";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
 import { useAuth } from "../context/AuthContext";
 import ReaderModal from "../components/ReaderModal";
 import RestrictedVideoPlayer from "../components/RestrictedVideoPlayer";
@@ -27,17 +28,63 @@ const AccountIcon = () => (
   </svg>
 );
 
-const normalizeList = (response) => {
-  const data = response?.data ?? response;
-  return Array.isArray(data) ? data : [];
-};
-
-const getBookId = (purchase) => {
-  const id = purchase?.livre_detail?.id ?? purchase?.livre?.id ?? purchase?.livre;
-  return id == null ? null : String(id);
-};
-
 const getBookStatus = (status) => String(status || "").trim().toLowerCase();
+
+const mapBook = (book) => {
+  if (!book) return null;
+  return {
+    ...book,
+    titre: book.title,
+    couverture: getStoragePublicUrl("covers", book.cover_path),
+    prix: book.price,
+    sous_categorie: book.subcategories?.name || "",
+  };
+};
+
+const mapService = (service) => {
+  if (!service) return null;
+  return {
+    ...service,
+    titre: service.title,
+    couverture: getStoragePublicUrl("covers", service.cover_path),
+    document_path: service.document_path,
+    video_url: service.video_url,
+    video_path: service.video_path,
+  };
+};
+
+const mapOrder = (order) => ({
+  ...order,
+  statut: order.status,
+  date_achat: order.purchased_at,
+  montant: order.amount,
+  livre: order.book_id,
+  livre_detail: mapBook(order.book),
+  service: mapService(order.service),
+  service_titre: order.service?.title,
+});
+
+const LIBRARY_ORDER_SELECT = `
+  id, user_id, book_id, service_id, status, amount, purchased_at,
+  book:books (
+    id, title, slug, description, price, cover_path, pdf_path, subcategory_id,
+    subcategories (name, slug)
+  ),
+  service:services (
+    id, title, slug, description, price, cover_path, document_path,
+    video_path, video_url, subcategory_id
+  )
+`;
+
+async function fetchUserOrders(userId) {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(LIBRARY_ORDER_SELECT)
+    .eq("user_id", userId)
+    .order("purchased_at", { ascending: false });
+  if (error) throw error;
+  return (data || []).map(mapOrder);
+}
 
 const formatDate = (date) => {
   if (!date) return "";
@@ -48,8 +95,8 @@ const formatDate = (date) => {
 };
 
 export default function MyLibrary() {
-  const [acces, setAcces] = useState([]);
   const [achats, setAchats] = useState([]);
+  const [loadedUserId, setLoadedUserId] = useState(null);
   const [chargement, setChargement] = useState(true);
   const [actualisation, setActualisation] = useState(false);
   const [erreurChargement, setErreurChargement] = useState("");
@@ -58,8 +105,7 @@ export default function MyLibrary() {
   const [livreEnLecture, setLivreEnLecture] = useState(null);
   const [servicePurchases, setServicePurchases] = useState([]);
   const [showReaderModal, setShowReaderModal] = useState(false);
-  const [readerDocumentUrl, setReaderDocumentUrl] = useState(null);
-  const [readerLivreId, setReaderLivreId] = useState(null);
+  const [readerServiceId, setReaderServiceId] = useState(null);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [videoModalUrl, setVideoModalUrl] = useState(null);
   const [videoModalTitle, setVideoModalTitle] = useState(null);
@@ -71,38 +117,35 @@ export default function MyLibrary() {
     let cancelled = false;
 
     const loadDashboard = async (showSpinner = false) => {
+      if (!user?.id) {
+        setAchats([]);
+        setServicePurchases([]);
+        setLoadedUserId(null);
+        setChargement(false);
+        return;
+      }
       if (showSpinner && !cancelled) setActualisation(true);
-      const results = await Promise.allSettled([
-        libraryService.myLibrary(),
-        purchaseService.myPurchases(),
-        purchaseService.myServicePurchases(),
-      ]);
-
-      if (cancelled) return;
-
-      const failed = [];
-      if (results[0].status === "fulfilled") {
-        setAcces(normalizeList(results[0].value));
-      } else {
-        failed.push("bibliothèque");
+      try {
+        const orders = await fetchUserOrders(user.id);
+        if (cancelled) return;
+        setAchats(orders.filter((order) => order.book_id));
+        setServicePurchases(orders.filter((order) => order.service_id));
+        setLoadedUserId(user.id);
+        setErreurChargement("");
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Impossible de charger la bibliothèque Supabase.", error);
+          setAchats([]);
+          setServicePurchases([]);
+          setLoadedUserId(user.id);
+          setErreurChargement("Impossible de charger votre bibliothèque. Vérifiez votre connexion puis réessayez.");
+        }
+      } finally {
+        if (!cancelled) {
+          setChargement(false);
+          setActualisation(false);
+        }
       }
-      if (results[1].status === "fulfilled") {
-        setAchats(normalizeList(results[1].value));
-      } else {
-        failed.push("achats de livres");
-      }
-      if (results[2].status === "fulfilled") {
-        setServicePurchases(normalizeList(results[2].value));
-      } else {
-        failed.push("achats de services");
-      }
-      setErreurChargement(
-        failed.length
-          ? `Impossible d'actualiser ${failed.join(", ")}. Vérifiez votre connexion puis réessayez.`
-          : ""
-      );
-      setChargement(false);
-      setActualisation(false);
     };
 
     loadDashboard();
@@ -123,42 +166,20 @@ export default function MyLibrary() {
       window.removeEventListener("online", majStatut);
       window.removeEventListener("offline", majStatut);
     };
-  }, []);
+  }, [user?.id]);
 
   const approvedBooks = useMemo(() => {
-    const accessByBook = new Map();
-    acces.forEach((access) => {
-      const id = access?.livre?.id;
-      const current = id == null ? null : accessByBook.get(String(id));
-      if (
-        id != null &&
-        (!current || (current.doit_revalider && !access.doit_revalider))
-      ) {
-        accessByBook.set(String(id), access);
-      }
-    });
-
     const booksById = new Map();
     achats
       .filter((purchase) => getBookStatus(purchase.statut) === "paye")
       .forEach((purchase) => {
-        const id = getBookId(purchase);
-        if (!id || booksById.has(id)) return;
-        const access = accessByBook.get(id);
-        const book = purchase.livre_detail || access?.livre || {
-          id: purchase.livre,
-          titre: purchase.livre_titre || "Livre acheté",
-        };
-        booksById.set(id, {
-          id: access?.id ?? `purchase-${purchase.id}`,
-          livre: book,
-          doit_revalider: Boolean(access?.doit_revalider),
-          date_achat: purchase.date_achat,
-        });
+        const book = purchase.livre_detail || { id: purchase.book_id, titre: "Livre acheté" };
+        if (!purchase.book_id || booksById.has(purchase.book_id)) return;
+        booksById.set(purchase.book_id, { id: purchase.id, livre: book, date_achat: purchase.date_achat });
       });
 
     return Array.from(booksById.values());
-  }, [achats, acces]);
+  }, [achats]);
 
   const pendingBooks = useMemo(() => {
     const approvedIds = new Set(approvedBooks.map((book) => String(book.livre.id)));
@@ -166,7 +187,7 @@ export default function MyLibrary() {
     achats
       .filter((purchase) => getBookStatus(purchase.statut) === "en_attente")
       .forEach((purchase) => {
-        const id = getBookId(purchase);
+        const id = purchase.book_id;
         if (!id || approvedIds.has(id) || pendingByBook.has(id)) return;
         pendingByBook.set(id, purchase);
       });
@@ -182,92 +203,42 @@ export default function MyLibrary() {
     return paidServiceIds.size;
   }, [servicePurchases]);
 
+  const libraryLoading = chargement || Boolean(user?.id && loadedUserId !== user.id);
+
   const recharger = async () => {
     setActualisation(true);
     setErreurChargement("");
-    const results = await Promise.allSettled([
-      libraryService.myLibrary(),
-      purchaseService.myPurchases(),
-      purchaseService.myServicePurchases(),
-    ]);
-    if (results[0].status === "fulfilled") setAcces(normalizeList(results[0].value));
-    if (results[1].status === "fulfilled") setAchats(normalizeList(results[1].value));
-    if (results[2].status === "fulfilled") setServicePurchases(normalizeList(results[2].value));
-    const failed = results.some((result) => result.status === "rejected");
-    setErreurChargement(
-      failed ? "Une partie de votre espace n'a pas pu être actualisée. Réessayez." : ""
-    );
-    setActualisation(false);
-  };
-
-  const revalider = async (livreId) => {
-    setErreurChargement("");
+    if (!user?.id) {
+      setActualisation(false);
+      return;
+    }
     try {
-      await libraryService.revalidate(livreId);
-      const { data } = await libraryService.myLibrary();
-      setAcces(normalizeList(data));
-    } catch {
-      setErreurChargement("La revalidation a échoué. Vérifiez votre connexion puis réessayez.");
+      const orders = await fetchUserOrders(user.id);
+      setAchats(orders.filter((order) => order.book_id));
+      setServicePurchases(orders.filter((order) => order.service_id));
+    } catch (error) {
+      console.error("Impossible d'actualiser la bibliothèque Supabase.", error);
+      setErreurChargement("Impossible d'actualiser votre bibliothèque. Vérifiez votre connexion puis réessayez.");
+    } finally {
+      setActualisation(false);
     }
   };
 
-  const resolveServiceAction = async (p) => {
-    const svc = p.service && typeof p.service === 'object' ? p.service : null;
-    const tryDoc = svc && (svc.document || svc.fichier || svc.file || svc.file_url || svc.document_url);
-    const tryVideo = svc && (svc.video || svc.video_url || svc.videourl);
-    const altDoc = p.document || p.fichier || p.document_url || p.file_url;
-    const altVideo = p.video || p.video_url;
-
-    if (tryDoc || altDoc) {
-      setReaderDocumentUrl(tryDoc || altDoc);
-      setReaderLivreId(svc && svc.id ? svc.id : null);
+  const resolveServiceAction = (purchase) => {
+    const service = purchase.service;
+    if (service?.document_path) {
+      setReaderServiceId(service.id);
       setShowReaderModal(true);
       return;
     }
-
-    if (tryVideo || altVideo) {
-      setVideoModalUrl(tryVideo || altVideo);
-      setVideoModalTitle((svc && svc.titre) || p.service_titre || p.service_title || 'Vidéo du service');
+    const video = service?.video_url || service?.video_path;
+    if (video) {
+      setVideoModalUrl(video);
+      setVideoModalTitle(service.titre || "Vidéo du service");
       setShowVideoModal(true);
       return;
     }
-
-    const identifier = svc?.slug || svc?.id || p.service;
-    try {
-      let svcRes = null;
-      try {
-        svcRes = await serviceService.getService(identifier);
-      } catch {
-        try {
-          svcRes = await serviceService.getServices({ id: identifier });
-        } catch {
-          svcRes = null;
-        }
-      }
-      const data = svcRes?.data ?? svcRes ?? null;
-      const serviceObj = Array.isArray(data) ? data[0] : data;
-      const doc = serviceObj?.document || serviceObj?.fichier || serviceObj?.file_url || serviceObj?.document_url;
-      const video = serviceObj?.video_url || serviceObj?.video;
-      if (doc) {
-        setReaderDocumentUrl(doc);
-        setReaderLivreId(serviceObj.id || null);
-        setShowReaderModal(true);
-        return;
-      }
-      if (video) {
-        setVideoModalUrl(video);
-        setVideoModalTitle(serviceObj.titre || serviceObj.title || 'Vidéo du service');
-        setShowVideoModal(true);
-        return;
-      }
-      setReaderDocumentUrl(null);
-      setReaderLivreId(null);
-      setShowReaderModal(true);
-    } catch {
-      setReaderDocumentUrl(null);
-      setReaderLivreId(null);
-      setShowReaderModal(true);
-    }
+    setErreurChargement("Aucun document ou vidéo n'est associé à cet achat.");
   };
 
   useEffect(() => {
@@ -345,17 +316,17 @@ export default function MyLibrary() {
       <section className="dashboard-stats" aria-label="Résumé de votre compte">
         <button type="button" aria-pressed={filtre === "livres"} className={`dashboard-stat ${filtre === "livres" ? "is-selected" : ""}`} onClick={() => setFiltre(filtre === "livres" ? "tout" : "livres")}>
           <span className="dashboard-stat-icon stat-icon-green">▤</span>
-          <span className="dashboard-stat-copy"><strong>{approvedBooks.length}</strong><small>Livres approuvés</small></span>
+          <span className="dashboard-stat-copy"><strong>{libraryLoading ? "—" : approvedBooks.length}</strong><small>Livres approuvés</small></span>
           <span className="dashboard-stat-arrow">›</span>
         </button>
         <button type="button" aria-pressed={filtre === "attente"} className={`dashboard-stat ${filtre === "attente" ? "is-selected" : ""}`} onClick={() => setFiltre(filtre === "attente" ? "tout" : "attente")}>
           <span className="dashboard-stat-icon stat-icon-amber">◷</span>
-          <span className="dashboard-stat-copy"><strong>{pendingBooks.length}</strong><small>En attente d'approbation</small></span>
+          <span className="dashboard-stat-copy"><strong>{libraryLoading ? "—" : pendingBooks.length}</strong><small>En attente d'approbation</small></span>
           <span className="dashboard-stat-arrow">›</span>
         </button>
         <button type="button" aria-pressed={filtre === "services"} className={`dashboard-stat ${filtre === "services" ? "is-selected" : ""}`} onClick={() => setFiltre(filtre === "services" ? "tout" : "services")}>
           <span className="dashboard-stat-icon stat-icon-purple">✦</span>
-          <span className="dashboard-stat-copy"><strong>{paidServiceCount}</strong><small>Services approuvés</small></span>
+          <span className="dashboard-stat-copy"><strong>{libraryLoading ? "—" : paidServiceCount}</strong><small>Services approuvés</small></span>
           <span className="dashboard-stat-arrow">›</span>
         </button>
       </section>
@@ -366,9 +337,9 @@ export default function MyLibrary() {
           <button type="button" onClick={recharger} disabled={actualisation}>Réessayer</button>
         </div>
       )}
-      {chargement && <p className="library-loading">Préparation de votre espace client…</p>}
+      {libraryLoading && <p className="library-loading">Préparation de votre espace client…</p>}
 
-      {!chargement && !erreurChargement && approvedBooks.length === 0 && pendingBooks.length === 0 && filtre !== "services" && (
+      {!libraryLoading && !erreurChargement && approvedBooks.length === 0 && pendingBooks.length === 0 && filtre !== "services" && (
         <section className="dashboard-empty">
           <span className="dashboard-empty-icon">▤</span>
           <h2>Votre bibliothèque est prête à commencer</h2>
@@ -377,7 +348,7 @@ export default function MyLibrary() {
         </section>
       )}
 
-      {!chargement && (
+      {!libraryLoading && (
         (filtre === "livres" && approvedBooks.length === 0) ||
         (filtre === "attente" && pendingBooks.length === 0) ||
         (filtre === "services" && servicePurchases.length === 0)
@@ -392,7 +363,7 @@ export default function MyLibrary() {
         </p>
       )}
 
-      {!chargement && (filtre === "tout" || filtre === "livres") && approvedBooks.length > 0 && (
+      {!libraryLoading && (filtre === "tout" || filtre === "livres") && approvedBooks.length > 0 && (
         <section className="library-section dashboard-content-section">
           <div className="dashboard-section-heading">
             <div>
@@ -415,18 +386,9 @@ export default function MyLibrary() {
                 <div className="book-card-body">
                   <span className="book-card-category">{access.livre.sous_categorie || "Votre bibliothèque"}</span>
                   <h3 className="book-card-title">{access.livre.titre}</h3>
-                  {access.doit_revalider ? (
-                    <>
-                      <p className="revalidate-warning">Revalidation en ligne requise</p>
-                      <button type="button" className="btn-outline" onClick={() => revalider(access.livre.id)} disabled={!enLigne}>
-                        Revalider maintenant
-                      </button>
-                    </>
-                  ) : (
-                    <button type="button" className="btn-primary book-read-button" onClick={() => setLivreEnLecture(access.livre.id)}>
-                      Lire le livre <span aria-hidden="true">→</span>
-                    </button>
-                  )}
+                  <button type="button" className="btn-primary book-read-button" onClick={() => setLivreEnLecture(access.livre.id)}>
+                    Lire le livre <span aria-hidden="true">→</span>
+                  </button>
                 </div>
               </article>
             ))}
@@ -434,7 +396,7 @@ export default function MyLibrary() {
         </section>
       )}
 
-      {!chargement && (filtre === "tout" || filtre === "attente") && pendingBooks.length > 0 && (
+      {!libraryLoading && (filtre === "tout" || filtre === "attente") && pendingBooks.length > 0 && (
         <section className="library-section dashboard-content-section">
           <div className="dashboard-section-heading">
             <div>
@@ -469,7 +431,7 @@ export default function MyLibrary() {
         </section>
       )}
 
-      {!chargement && (filtre === "tout" || filtre === "services") && servicePurchases.length > 0 && (
+      {!libraryLoading && (filtre === "tout" || filtre === "services") && servicePurchases.length > 0 && (
         <section className="library-section">
           <div className="dashboard-section-heading">
             <div>
@@ -528,9 +490,8 @@ export default function MyLibrary() {
       {showReaderModal && (
         <ReaderModal
           open={true}
-          livreId={readerLivreId}
-          documentUrl={readerDocumentUrl}
-          onClose={() => { setShowReaderModal(false); setReaderDocumentUrl(null); setReaderLivreId(null); setPlayingVideoId(null); setPlayingVideoUrl(null); }}
+          serviceId={readerServiceId}
+          onClose={() => { setShowReaderModal(false); setReaderServiceId(null); setPlayingVideoId(null); setPlayingVideoUrl(null); }}
         />
       )}
 

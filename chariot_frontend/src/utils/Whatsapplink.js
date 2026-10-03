@@ -1,30 +1,25 @@
+// chariot_frontend/src/utils/whatsappLink.js
+
 /**
- * Construit un lien "cliquer pour discuter" WhatsApp adapté à l'appareil
- * du visiteur.
- *
- * - Sur mobile : utilise wa.me, qui ouvre directement l'app WhatsApp
- *   sur la bonne conversation, sans souci.
- * - Sur PC (desktop) : utilise api.whatsapp.com, qui reste dans le
- *   navigateur et évite le sélecteur d'application de Windows déclenché
- *   par les liens wa.me quand WhatsApp Desktop est installé — l'app
- *   Desktop ne charge pas toujours correctement la conversation avec le
- *   message pré-rempli, ce qui donne l'impression que "ça n'ouvre que
- *   WhatsApp sans lancer la discussion".
- *
- * Sur PC, un clic supplémentaire ("Continuer vers WhatsApp Web") reste
- * possible : c'est imposé par WhatsApp lui-même, aucun site ne peut le
- * supprimer complètement.
+ * Construit un lien WhatsApp propre.
  */
-export function buildWhatsAppLink(numero, texte) {
-  const numeroPropre = String(numero || "").replace(/[^0-9]/g, "");
-  const texteEncode = encodeURIComponent(texte || "");
+export function buildWhatsAppLink(phoneNumber, message = "") {
+  if (!phoneNumber) return "";
 
-  const estMobile =
-    typeof navigator !== "undefined" &&
-    /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+  // Nettoyer le numéro (garder seulement les chiffres)
+  let cleanPhone = String(phoneNumber).replace(/\D/g, '');
 
-  if (estMobile) {
-    return `https://wa.me/${numeroPropre}?text=${texteEncode}`;
+  // Préfixe Cameroun si nécessaire (ajustez selon votre logique métier réelle)
+  // Exemple simple : si ça commence par 6 et fait 9 chiffres -> ajouter 237
+  if (cleanPhone.length === 9 && cleanPhone.startsWith('6')) {
+    cleanPhone = '237' + cleanPhone;
+  } else if (!cleanPhone.startsWith('+') && !cleanPhone.startsWith('237')) {
+     // Sécurité supplémentaire si format inconnu
+     cleanPhone = '+' + cleanPhone; 
   }
-  return `https://api.whatsapp.com/send?phone=${numeroPropre}&text=${texteEncode}`;
+
+  const encodedMessage = encodeURIComponent(message);
+  
+  // Retourne juste l'URL string standard
+  return `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
 }

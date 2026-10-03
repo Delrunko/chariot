@@ -6,8 +6,8 @@
   --ink: #12141C;
   --muted: #6B7280;
   --line: #E7E9F0;
-  --primary: #16A34A;
-  --primary-dark: #0F7C39;
+  --primary: #c3272b;
+  --primary-dark: #9f1f23;
   --danger: #E23D3D;
   --danger-bg: #FDECEC;
   --amber: #B7791F;
@@ -82,12 +82,12 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #4F46E5, #7C3AED);
+  background: linear-gradient(135deg, #c3272b, #171717);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(79,70,229,0.35);
+  box-shadow: 0 4px 12px rgba(195,39,43,0.28);
 }
 
 .account-avatar-icon {

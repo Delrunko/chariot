@@ -8,10 +8,10 @@
   --ivory: #faf8f5;
   --ink: #1a1a1a;
   --ink-muted: #6b6b6b;
-  --gold: #d4a574;
-  --gold-dark: #b8935f;
-  --safety-deep: #e8f5e9;
-  --navy-deep: #1e3a5f;
+  --gold: #c3272b;
+  --gold-dark: #9f1f23;
+  --safety-deep: #f7e7e7;
+  --navy-deep: #171717;
   --font-body: 'Inter', sans-serif;
 }
 
@@ -38,9 +38,9 @@
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(212, 165, 116, 0.1) 0%,
+    rgba(195, 39, 43, 0.1) 0%,
     transparent 50%,
-    rgba(30, 58, 95, 0.1) 100%
+    rgba(23, 23, 23, 0.1) 100%
   );
   opacity: 0;
   transition: opacity 0.5s ease;
@@ -160,7 +160,7 @@
 .book-card-badge-owned {
   background: linear-gradient(135deg, var(--safety-deep) 0%, #c8e6c9 100%);
   color: var(--navy-deep);
-  box-shadow: 0 4px 12px rgba(30, 58, 95, 0.2);
+  box-shadow: 0 4px 12px rgba(23, 23, 23, 0.2);
 }
 
 .book-card-badge-owned::before {
@@ -181,7 +181,7 @@
   font-size: 0.85rem;
   padding: 8px 50px;
   transform: rotate(40deg);
-  box-shadow: 0 6px 16px rgba(212, 165, 116, 0.5);
+  box-shadow: 0 6px 16px rgba(195, 39, 43, 0.35);
   z-index: 5;
   letter-spacing: 0.8px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -192,7 +192,7 @@
 
 .book-card:hover .book-card-price-ribbon {
   transform: rotate(40deg) scale(1.05);
-  box-shadow: 0 8px 20px rgba(212, 165, 116, 0.6);
+  box-shadow: 0 8px 20px rgba(195, 39, 43, 0.45);
 }
 
 /* Effet de brillance sur le ruban */

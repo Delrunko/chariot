@@ -1,20 +1,30 @@
 ﻿import axios from "axios";
 
-const API_BASE_URL = "https://chariot-backend-lmms.onrender.com/api";
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  (import.meta.env.DEV
+    ? "http://127.0.0.1:8000/api"
+    : "https://chariot-backend-lmms.onrender.com/api")
+).replace(/\/+$/, "");
+
+function secureUrl(url) {
+  if (!url) return url;
+
+  try {
+    const normalized = new URL(url, window.location.origin);
+    const isLocalHost = ["localhost", "127.0.0.1", "[::1]"].includes(normalized.hostname);
+    if (normalized.protocol === "http:" && !isLocalHost) {
+      normalized.protocol = "https:";
+    }
+    return normalized.toString();
+  } catch {
+    return url.replace(/^http:/i, "https:");
+  }
+}
 
 const api = axios.create({ 
-  baseURL: API_BASE_URL,
+  baseURL: secureUrl(API_BASE_URL),
   timeout: 60000, // CORRECTION 1 : Attendre 60 secondes que Render se réveille
-});
-
-// --- Attach JWT token to each request ---
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("eds_access_token");
-  if (token) {
-    config.headers = config.headers || {};
-    config.headers.Authorization = 'Bearer ' + token;
-  }
-  return config;
 });
 
 // --- Device fingerprint helper ---
@@ -27,31 +37,6 @@ export function getEmpreinteAppareil() {
   return empreinte;
 }
 
-// Helper to build fetch headers including Authorization when available
-function buildFetchHeaders(additional = {}) {
-  const token = localStorage.getItem("eds_access_token");
-  const headers = { ...additional };
-  if (token) headers.Authorization = 'Bearer ' + token;
-  return headers;
-}
-
-// --- Auth ---
-export const authService = {
-  register: (data) => api.post("/auth/register/", data),
-  login: async (username, password) => {
-    const { data } = await api.post("/auth/login/", { username, password });
-    localStorage.setItem("eds_access_token", data.access);
-    localStorage.setItem("eds_refresh_token", data.refresh);
-    return data;
-  },
-  logout: () => {
-    localStorage.removeItem("eds_access_token");
-    localStorage.removeItem("eds_refresh_token");
-  },
-  me: () => api.get("/auth/me/"),
-  isAuthenticated: () => !!localStorage.getItem("eds_access_token"),
-};
-
 export const adminService = {
   dashboard: () => api.get("/auth/admin/dashboard/"),
   users: () => api.get("/auth/admin/users/"),
@@ -61,17 +46,6 @@ export const catalogService = {
   getCategories: () => api.get("/categories/"),
   getBooks: (params = {}) => api.get("/books/", { params }),
   getBook: (slug) => api.get(`/books/${slug}/`),
-  getVitrine: () => api.get("/books/vitrine/"),
-  visitCounter: async () => {
-    const response = await fetch(`${API_BASE_URL}/visit-counter/`, {
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
-    if (!response.ok) {
-      throw new Error(`Le compteur de visites est indisponible (${response.status}).`);
-    }
-    return response.json();
-  },
 };
 
 export const serviceService = {
@@ -89,10 +63,9 @@ export const quotesService = {
 };
 
 export const testimonialsService = {
-  getTestimonials: () => api.get('/testimonials/'),
   createTestimonial: (payload) => {
-    const headers = buildFetchHeaders({ 'Content-Type': 'application/json' });
-    return fetch(`${API_BASE_URL}/testimonials/`, { method: 'POST', headers, body: JSON.stringify(payload) }).then(async (res) => {
+    const headers = { "Content-Type": "application/json" };
+    return fetch(secureUrl(`${API_BASE_URL}/testimonials/`), { method: 'POST', headers, body: JSON.stringify(payload) }).then(async (res) => {
       if (!res.ok) {
         const text = await res.text();
         const err = new Error('Echec envoi témoignage');
@@ -116,10 +89,9 @@ export const purchaseService = {
     }),
 
   create: async (payload) => {
-    const headers = buildFetchHeaders({ "Content-Type": "application/json" });
-    const res = await fetch(`${API_BASE_URL}/purchases/`, {
+    const res = await fetch(secureUrl(`${API_BASE_URL}/purchases/`), {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -133,25 +105,9 @@ export const purchaseService = {
     return res.json();
   },
 
-  myPurchases: async () => {
-    const token = localStorage.getItem("eds_access_token");
-    if (token) {
-      const res = await fetch(`${API_BASE_URL}/purchases/mes-achats/`, { headers: buildFetchHeaders() });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
-    return api.get("/purchases/mes-achats/");
-  },
+  myPurchases: () => api.get("/purchases/mes-achats/"),
 
-  myServicePurchases: async () => {
-    const token = localStorage.getItem("eds_access_token");
-    if (token) {
-      const res = await fetch(`${API_BASE_URL}/purchases/service/mes-achats/`, { headers: buildFetchHeaders() });
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
-    }
-    return api.get("/purchases/service/mes-achats/");
-  },
+  myServicePurchases: () => api.get("/purchases/service/mes-achats/"),
 
   adminServicePurchases: () => api.get("/purchases/admin/service/"),
   adminServiceUpdate: (id, payload) => api.patch(`/purchases/admin/service/${id}/`, payload),
@@ -168,11 +124,11 @@ export const libraryService = {
   revalidate: (livreId) =>
     api.post(`/library/${livreId}/revalider/`, { empreinte_appareil: getEmpreinteAppareil() }),
   readUrl: (livreId) =>
-    `${API_BASE_URL}/library/${livreId}/read/?empreinte_appareil=${getEmpreinteAppareil()}`,
+    secureUrl(`${API_BASE_URL}/library/${livreId}/read/?empreinte_appareil=${getEmpreinteAppareil()}`),
   
   readDocument: async (livreId) => {
     const empreinte = getEmpreinteAppareil();
-    const readUrl = `${API_BASE_URL}/library/${livreId}/read/?empreinte_appareil=${empreinte}`;
+    const readUrl = secureUrl(`${API_BASE_URL}/library/${livreId}/read/?empreinte_appareil=${empreinte}`);
 
     // CORRECTION 2 : Ajouter un timeout de 60 secondes pour les requêtes fetch
     const controller = new AbortController();
@@ -198,14 +154,13 @@ export const libraryService = {
 
     try {
       let res = await fetch(readUrl, { 
-        headers: buildFetchHeaders(),
         signal: controller.signal 
       });
 
       if (!res.ok && (res.status === 404 || res.status === 426)) {
         const revalRes = await fetch(`${API_BASE_URL}/library/${livreId}/revalider/`, {
           method: "POST",
-          headers: buildFetchHeaders({ "Content-Type": "application/json" }),
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ empreinte_appareil: empreinte }),
           signal: controller.signal,
         });
@@ -215,7 +170,6 @@ export const libraryService = {
         }
 
         res = await fetch(readUrl, { 
-          headers: buildFetchHeaders(),
           signal: controller.signal 
         });
       }

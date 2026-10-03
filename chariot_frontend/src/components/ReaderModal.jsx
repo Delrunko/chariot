@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { libraryService } from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useBookAccess } from "../hooks/useBookAccess";
+import { getSecureServicePdfUrl } from "../services/pdfService";
 import "./ReaderModal.css";
 
-export default function ReaderModal({ livreId, documentUrl = null, onClose, open = true }) {
+export default function ReaderModal({ livreId, serviceId = null, onClose, open = true }) {
   const navigate = useNavigate();
   const routeParams = useParams();
-  const resolvedId = livreId ?? Number(routeParams.id);
+  const resolvedId = livreId ?? routeParams.id ?? null;
   const { user } = useAuth();
   const [src, setSrc] = useState("");
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState("");
   const [retryCount, setRetryCount] = useState(0);
+  const bookAccess = useBookAccess(resolvedId, open && !serviceId, retryCount);
   const [statusMessage, setStatusMessage] = useState("");
   const [nombrePages, setNombrePages] = useState(0);
   const [renduEnCours, setRenduEnCours] = useState(false);
@@ -32,89 +34,85 @@ export default function ReaderModal({ livreId, documentUrl = null, onClose, open
   };
 
   useEffect(() => {
-    // If a direct documentUrl is provided (service document), use it directly
-    if ((!resolvedId && !documentUrl) || !open) {
+    if (!open) {
       setSrc("");
+      if (conteneurRef.current) conteneurRef.current.innerHTML = "";
       setErreur("");
       setStatusMessage("");
       setChargement(false);
       return;
     }
 
+    setSrc("");
+    if (conteneurRef.current) conteneurRef.current.innerHTML = "";
     let isMounted = true;
-    setChargement(true);
-    setErreur("");
-    setStatusMessage("");
-    setStatusMessage("Chargement du document et vérification d'accès...");
-
-    if (documentUrl) {
-      // Try to fetch the document using the app's auth token first. Some PDF
-      // URLs are protected and require Authorization headers; pdf.js will
-      // attempt a plain GET without the app token and fail. Fetching the
-      // blob ourselves and providing an object URL avoids that problem.
-      const tryFetchWithAuth = async () => {
-        try {
-          const token = localStorage.getItem('eds_access_token');
-          const headers = token ? { Authorization: 'Bearer ' + token } : {};
-          const res = await fetch(documentUrl, { method: 'GET', headers });
-          if (res.ok) {
-            const ct = res.headers.get('content-type') || '';
-            // If the response looks like a PDF (or generic binary), use blob
-            if (ct.includes('pdf') || ct.includes('octet-stream') || res.headers.get('content-disposition')) {
-              const blob = await res.blob();
-              if (isMounted) {
-                const url = URL.createObjectURL(blob);
-                ownedUrlRef.current = url;
-                setSrc(url);
-                setStatusMessage("");
-                setChargement(false);
-              }
-              return;
-            }
-            // Otherwise, maybe the server returned the PDF as a redirect or HTML page.
-            // Fall back to using the original URL.
-          }
-        } catch (e) {
-          // ignore and fall back to direct URL
+    const loadPdf = async (signedUrl) => {
+      setChargement(true);
+      setErreur("");
+      setStatusMessage("Chargement du document...");
+      try {
+        const response = await fetch(signedUrl);
+        if (!response.ok) {
+          throw new Error(`Le fichier PDF est indisponible (HTTP ${response.status}).`);
         }
-
-        // Fall back: use the provided URL directly (may fail if protected)
+        const blob = await response.blob();
+        if (!blob.size) throw new Error("Le fichier PDF est vide.");
         if (isMounted) {
-          setSrc(documentUrl);
+          const url = URL.createObjectURL(blob);
+          ownedUrlRef.current = url;
+          setSrc(url);
+          setStatusMessage("");
+        }
+      } catch (error) {
+        if (isMounted) {
+          setErreur(error instanceof Error ? error.message : "Le document est inaccessible.");
+          setStatusMessage("");
+        }
+      } finally {
+        if (isMounted) setChargement(false);
+      }
+    }
+
+    if (serviceId) {
+      setChargement(true);
+      setErreur("");
+      setStatusMessage("Vérification de votre achat...");
+      getSecureServicePdfUrl(serviceId)
+        .then(loadPdf)
+        .catch((error) => {
+          if (!isMounted) return;
+          setErreur(error instanceof Error ? error.message : "Le document est inaccessible.");
           setStatusMessage("");
           setChargement(false);
-        }
-      };
-
-      tryFetchWithAuth();
-    } else {
-      libraryService
-        .readDocument(resolvedId)
-        .then((url) => {
-          if (isMounted) {
-            ownedUrlRef.current = url;
-            setSrc(url);
-            setStatusMessage("");
-          } else {
-            URL.revokeObjectURL(url);
-          }
-        })
-        .catch((err) => {
-          if (isMounted) {
-            setErreur(err.message || "Le document est inaccessible pour le moment.");
-            setStatusMessage("");
-          }
-        })
-        .finally(() => {
-          if (isMounted) setChargement(false);
         });
+    } else if (!resolvedId) {
+      setErreur("Identifiant du livre manquant.");
+      setStatusMessage("");
+      setChargement(false);
+    } else if (bookAccess.isLoading) {
+      setChargement(true);
+      setStatusMessage("Vérification de votre achat...");
+    } else if (bookAccess.error) {
+      setErreur(bookAccess.error);
+      setStatusMessage("");
+      setChargement(false);
+    } else if (bookAccess.url) {
+      void loadPdf(bookAccess.url);
     }
 
     return () => {
       isMounted = false;
       libererRessourcesPdf();
     };
-  }, [resolvedId, open, documentUrl, retryCount]);
+  }, [
+    resolvedId,
+    serviceId,
+    open,
+    retryCount,
+    bookAccess.isLoading,
+    bookAccess.url,
+    bookAccess.error,
+  ]);
 
   // Build the watermark text shown across every page: "Nom — Numéro".
   // Falls back gracefully if either piece of info is missing.

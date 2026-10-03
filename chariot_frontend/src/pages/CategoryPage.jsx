@@ -1,7 +1,8 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
-import { catalogService, serviceService, quotesService, purchaseService } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
+import { createQuote } from "../services/quoteService";
 import { buildWhatsAppLink } from "../utils/whatsappLink";
 import BookCard from "../components/BookCard";
 import RevealOnScroll from "../components/RevealOnScroll";
@@ -9,48 +10,172 @@ import ServiceCard from "../components/ServiceCard";
 import "./Home.css";
 import "./CategoryPage.css";
 
+const categoryItemRelations = `
+  subcategories!inner (
+    id,
+    name,
+    slug,
+    active,
+    categories!inner (
+      id,
+      name,
+      slug,
+      category_type,
+      active
+    )
+  )
+`;
+
+const relationRecord = (value) => (Array.isArray(value) ? value[0] : value);
+
+function mapCategoryItem(item, type) {
+  const subcategory = relationRecord(item.subcategories);
+  const category = relationRecord(subcategory?.categories);
+
+  return {
+    id: item.id,
+    titre: item.title,
+    slug: item.slug,
+    description: item.description,
+    prix: item.price,
+    couverture: getStoragePublicUrl("covers", item.cover_path),
+    date_ajout: item.added_at,
+    categorie: category?.name ?? "",
+    sous_categorie: subcategory?.name ?? "",
+    type_categorie: type,
+    ...(type === "service"
+      ? {
+          document: item.document_path,
+          video: item.video_path,
+          video_url: item.video_url,
+          whatsapp_phone: item.whatsapp_phone,
+        }
+      : {}),
+  };
+}
+
+function formatCategoryName(slug) {
+  return (slug || "")
+    .split("-")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toLocaleUpperCase("fr-FR") + word.slice(1))
+    .join(" ");
+}
+
 export default function CategoryPage() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [category, setCategory] = useState(null);
   const [servicesAchetesIds, setServicesAchetesIds] = useState(new Set());
-  const { user } = useAuth();
 
   useEffect(() => {
     let mounted = true;
     setLoading(true);
+    setLoadError(null);
 
-    catalogService
-      .getCategories()
-      .then((res) => {
-        if (!mounted) return;
-        const cats = res?.data || [];
-        const found = cats.find((c) => c.slug === slug);
-        setCategory(found || { slug, nom: slug });
-      })
-      .catch(() => setCategory({ slug, nom: slug }));
+    const loadCategory = async () => {
+      const [categoryResult, booksResult, servicesResult] = await Promise.all([
+        supabase
+          .from("categories")
+          .select("id, name, slug")
+          .eq("slug", slug)
+          .eq("active", true)
+          .maybeSingle(),
+        supabase
+          .from("books")
+          .select(`
+            id,
+            title,
+            slug,
+            description,
+            price,
+            cover_path,
+            added_at,
+            ${categoryItemRelations}
+          `)
+          .eq("available", true)
+          .eq("subcategories.categories.slug", slug)
+          .eq("subcategories.active", true)
+          .eq("subcategories.categories.active", true)
+          .order("added_at", { ascending: false }),
+        supabase
+          .from("services")
+          .select(`
+            id,
+            title,
+            slug,
+            description,
+            price,
+            cover_path,
+            document_path,
+            video_path,
+            video_url,
+            whatsapp_phone,
+            added_at,
+            ${categoryItemRelations}
+          `)
+          .eq("available", true)
+          .eq("subcategories.categories.slug", slug)
+          .eq("subcategories.active", true)
+          .eq("subcategories.categories.active", true)
+          .order("added_at", { ascending: false }),
+      ]);
 
-    const params = {
-      categorie: slug,
-      search: searchParams.get("q") || undefined,
+      const failedResult = [categoryResult, booksResult, servicesResult].find(
+        (result) => result.error,
+      );
+      if (failedResult?.error) {
+        throw new Error(failedResult.error.message);
+      }
+
+      const books = (booksResult.data ?? []).map((book) =>
+        mapCategoryItem(book, "livre"),
+      );
+      const services = (servicesResult.data ?? []).map((service) =>
+        mapCategoryItem(service, "service"),
+      );
+      const term = (searchParams.get("q") || "").trim().toLocaleLowerCase("fr-FR");
+      const merged = [...books, ...services]
+        .filter((item) => {
+          if (!term) return true;
+          return [item.titre, item.description, item.sous_categorie]
+            .filter(Boolean)
+            .join(" ")
+            .toLocaleLowerCase("fr-FR")
+            .includes(term);
+        })
+        .sort((a, b) => new Date(b.date_ajout || 0) - new Date(a.date_ajout || 0));
+
+      if (mounted) {
+        const foundCategory = categoryResult.data;
+        setCategory(
+          foundCategory
+            ? { ...foundCategory, nom: foundCategory.name }
+            : { slug, nom: formatCategoryName(slug) },
+        );
+        setItems(merged);
+      }
     };
 
-    Promise.all([catalogService.getBooks(params), serviceService.getServices(params)])
-      .then(([booksRes, servicesRes]) => {
-        if (!mounted) return;
-        const books = booksRes?.data || [];
-        const services = servicesRes?.data || [];
-        const merged = [...books, ...services].sort((a, b) => {
-          const da = new Date(a.date_ajout || a.created_at || 0).getTime();
-          const db = new Date(b.date_ajout || b.created_at || 0).getTime();
-          return db - da;
-        });
-        setItems(merged);
+    loadCategory()
+      .catch((error) => {
+        if (mounted) {
+          setItems([]);
+          setLoadError(
+            error instanceof TypeError
+              ? "Connexion à Supabase impossible. Vérifiez l'URL du projet et votre connexion."
+              : error instanceof Error
+                ? error.message
+                : "Impossible de charger cette catégorie depuis Supabase.",
+          );
+        }
       })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
 
     return () => {
       mounted = false;
@@ -59,30 +184,56 @@ export default function CategoryPage() {
 
   useEffect(() => {
     let mounted = true;
-    if (!user) {
-      setServicesAchetesIds(new Set());
-      return () => { mounted = false; };
-    }
-    purchaseService
-      .myServicePurchases()
-      .then((res) => {
-        if (!mounted) return;
-        const payload = res?.data ?? res ?? [];
-        const list = Array.isArray(payload) ? payload : [];
-        const ids = list
-          .filter((p) => {
-            const s = (p.statut || "").toString().toLowerCase();
-            return s.includes("paye") || s === "payé" || s === "paid";
-          })
-          .map((p) => {
-            if (p.service && typeof p.service === "object") return String(p.service.id);
-            return String(p.service);
-          });
-        setServicesAchetesIds(new Set(ids));
-      })
-      .catch(() => setServicesAchetesIds(new Set()));
-    return () => { mounted = false; };
-  }, [user]);
+    let requestId = 0;
+
+    const loadPaidServiceOrders = async (userId) => {
+      const currentRequestId = ++requestId;
+      if (!userId) {
+        if (mounted) setServicesAchetesIds(new Set());
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select("service_id")
+        .eq("user_id", userId)
+        .eq("status", "paye")
+        .not("service_id", "is", null);
+
+      if (error) {
+        console.error("Impossible de charger les achats de services depuis Supabase.", error);
+        if (mounted && currentRequestId === requestId) {
+          setServicesAchetesIds(new Set());
+        }
+        return;
+      }
+
+      if (mounted && currentRequestId === requestId) {
+        setServicesAchetesIds(
+          new Set((data ?? []).map((order) => String(order.service_id))),
+        );
+      }
+    };
+
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("Impossible de vérifier la session Supabase.", error);
+        return loadPaidServiceOrders(null);
+      }
+      return loadPaidServiceOrders(data.session?.user.id);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => {
+        void loadPaidServiceOrders(session?.user.id ?? null);
+      }, 0);
+    });
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const [selectedItems, setSelectedItems] = useState({});
   const [quoteForm, setQuoteForm] = useState({ client_name: "", client_email: "", client_phone: "", message: "", event_date: "", address: "", prix_estime: "" });
@@ -151,7 +302,12 @@ export default function CategoryPage() {
         }
       }
 
-      const { data } = await quotesService.createQuote(formData);
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (sessionData?.session?.user?.id) {
+        formData.append('user_id', sessionData.session.user.id);
+      }
+
+      const data = await createQuote(formData);
 
       const pdfUrl = data && data.pdf_file ? data.pdf_file : null;
       const ref = data && data.id ? `DEVIS-${data.id}` : 'DEVIS-N/A';
@@ -188,17 +344,22 @@ export default function CategoryPage() {
       <header className="catalog-header">
         <div className="catalog-header-copy">
           <span className="eyebrow">Catalogue</span>
-          <h1>{category ? `${category.nom}` : "Catégorie"}</h1>
-          <p>Tous les éléments disponibles pour {category ? category.nom : slug}.</p>
+          <h1>{category?.nom || formatCategoryName(slug) || "Catégorie"}</h1>
+          <p>Tous les éléments disponibles pour {category?.nom || formatCategoryName(slug)}.</p>
         </div>
       </header>
 
       {loading && <div className="catalog-state">Chargement…</div>}
-      {!loading && displayed.length === 0 && (
+      {!loading && loadError && (
+        <div className="catalog-state catalog-empty" role="alert">
+          La catégorie est temporairement indisponible : {loadError}
+        </div>
+      )}
+      {!loading && !loadError && displayed.length === 0 && (
         <div className="catalog-state catalog-empty">Aucun élément trouvé dans cette catégorie.</div>
       )}
 
-      {!loading && displayed.length > 0 && (
+      {!loading && !loadError && displayed.length > 0 && (
         <div className="catalog-grid">
           {displayed.map((it, idx) => (
             <RevealOnScroll

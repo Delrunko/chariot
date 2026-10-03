@@ -1,34 +1,43 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import { authService } from "../services/api";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import PasswordField from "../components/PasswordField";
 import "./AuthForm.css";
 
 export default function Register() {
-  const [form, setForm] = useState({ username: "", email: "", telephone: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
   const [erreur, setErreur] = useState("");
-  const navigate = useNavigate();
+  const [success, setSuccess] = useState("");
+  const { signUp } = useAuth();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
     setErreur("");
-    try {
-      await authService.register(form);
-      navigate("/connexion");
-    } catch {
-      setErreur("Impossible de créer le compte. Vérifiez les informations.");
+    setSuccess("");
+
+    const result = await signUp(form.email, form.password, form.fullName, form.phone);
+    if (!result.success) {
+      setErreur(result.error);
+      return;
     }
+
+    setSuccess(
+      result.needsEmailConfirmation
+        ? "Vérifiez votre email pour confirmer la création de votre compte."
+        : "Votre compte a été créé avec succès.",
+    );
   };
 
   return (
     <form className="auth-form" onSubmit={submit}>
       <h1>Créer un compte</h1>
       {erreur && <p className="auth-error">{erreur}</p>}
-      <input name="username" placeholder="Nom d'utilisateur" onChange={handleChange} required />
-      <input name="email" type="email" placeholder="Email" onChange={handleChange} required />
-      <input name="telephone" placeholder="Numéro Orange Money" onChange={handleChange} required />
+      {success && <p className="auth-success" role="status">{success}</p>}
+      <input name="fullName" autoComplete="name" placeholder="Nom complet" value={form.fullName} onChange={handleChange} required />
+      <input name="email" type="email" autoComplete="email" placeholder="Email" value={form.email} onChange={handleChange} required />
+      <input name="phone" type="tel" autoComplete="tel" placeholder="Téléphone" value={form.phone} onChange={handleChange} required />
       <PasswordField
         name="password"
         placeholder="Mot de passe"

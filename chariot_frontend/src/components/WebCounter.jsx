@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { catalogService } from "../services/api";
+import { supabase } from "../lib/supabaseClient";
 import "./WebCounter.css";
 
 let visitCounterRequest;
@@ -22,22 +22,28 @@ export default function WebCounter({ className = "" }) {
   useEffect(() => {
     let active = true;
     if (!visitCounterRequest) {
-      visitCounterRequest = catalogService.visitCounter().catch((requestError) => {
-        visitCounterRequest = null;
-        throw requestError;
-      });
+      visitCounterRequest = supabase
+        .rpc("increment_site_visit")
+        .then(({ data, error }) => {
+          if (error) throw error;
+          return data;
+        })
+        .catch((requestError) => {
+          visitCounterRequest = null;
+          throw requestError;
+        });
     }
 
     visitCounterRequest
-      .then((data) => {
-        if (!Number.isSafeInteger(data.count) || data.count < 0) {
+      .then((totalVisits) => {
+        if (!Number.isSafeInteger(totalVisits) || totalVisits < 0) {
           throw new Error("Le serveur a renvoyé un compteur de visites invalide.");
         }
         if (active) {
-          setCount(data.count);
+          setCount(totalVisits);
           setError("");
           try {
-            localStorage.setItem("eds_visit_count", String(data.count));
+            localStorage.setItem("eds_visit_count", String(totalVisits));
           } catch (storageError) {
             setError(storageError.message);
           }

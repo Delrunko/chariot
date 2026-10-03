@@ -10,7 +10,7 @@
 }
 
 .auth-form h1 {
-  color: #1f3864;
+  color: var(--navy);
   margin-bottom: 0.5rem;
 }
 
@@ -43,19 +43,19 @@
   padding: 0;
   border: 0;
   border-radius: 6px;
-  color: #526174;
+  color: var(--ink-muted);
   background: transparent;
   cursor: pointer;
   transform: translateY(-50%);
 }
 
 .auth-password-toggle:hover {
-  color: #1f3864;
-  background: rgba(31, 56, 100, 0.08);
+  color: var(--gold);
+  background: rgba(195, 39, 43, 0.08);
 }
 
 .auth-password-toggle:focus-visible {
-  outline: 2px solid #1f3864;
+  outline: 2px solid var(--gold);
   outline-offset: 1px;
 }
 
@@ -71,5 +71,10 @@
 
 .auth-error {
   color: #c0392b;
+  font-size: 0.9rem;
+}
+
+.auth-success {
+  color: #18794e;
   font-size: 0.9rem;
 }

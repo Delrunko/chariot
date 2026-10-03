@@ -1,11 +1,57 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { catalogService, serviceService, purchaseService } from "../services/api";
-import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
 import BookCard from "../components/BookCard";
 import RevealOnScroll from "../components/RevealOnScroll";
 import ServiceCard from "../components/ServiceCard";
 import "./Home.css";
+
+const catalogRelations = `
+  subcategories!inner (
+    id,
+    name,
+    slug,
+    active,
+    categories!inner (
+      id,
+      name,
+      slug,
+      category_type,
+      active
+    )
+  )
+`;
+
+const relationRecord = (value) => (Array.isArray(value) ? value[0] : value);
+
+function mapCatalogItem(item, type) {
+  const subcategory = relationRecord(item.subcategories);
+  const category = relationRecord(subcategory?.categories);
+
+  return {
+    id: item.id,
+    titre: item.title,
+    slug: item.slug,
+    description: item.description,
+    prix: item.price,
+    couverture: getStoragePublicUrl("covers", item.cover_path),
+    date_ajout: item.added_at,
+    categorie: category?.name ?? "",
+    categorie_slug: category?.slug ?? "",
+    sous_categorie: subcategory?.name ?? "",
+    sous_categorie_slug: subcategory?.slug ?? "",
+    type_categorie: type,
+    ...(type === "service"
+      ? {
+          document: item.document_path,
+          video: item.video_path,
+          video_url: item.video_url,
+          whatsapp_phone: item.whatsapp_phone,
+        }
+      : {}),
+  };
+}
 
 const normalizeText = (value = "") =>
   String(value)
@@ -18,89 +64,176 @@ export default function Catalog() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [livres, setLivres] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const [erreur, setErreur] = useState(null);
   const [categoryOptions, setCategoryOptions] = useState([]);
   const [servicesAchetesIds, setServicesAchetesIds] = useState(new Set());
-  const { user } = useAuth();
 
   const sousCategorie = searchParams.get("sous_categorie");
   const categorie = searchParams.get("categorie");
   const recherche = searchParams.get("q") || "";
 
   useEffect(() => {
-    // Load available categories from the API so we can use slugs for filtering
     let mounted = true;
-    catalogService
-      .getCategories()
-      .then((res) => {
-        if (!mounted) return;
-        setCategoryOptions(res?.data || []);
+
+    const loadCatalog = async () => {
+      const [categoriesResult, booksResult, servicesResult] = await Promise.all([
+        supabase
+          .from("categories")
+          .select("id, name, slug, category_type, sort_order")
+          .eq("active", true)
+          .order("sort_order", { ascending: true })
+          .order("name", { ascending: true }),
+        supabase
+          .from("books")
+          .select(`
+            id,
+            title,
+            slug,
+            description,
+            price,
+            cover_path,
+            added_at,
+            ${catalogRelations}
+          `)
+          .eq("available", true)
+          .eq("subcategories.active", true)
+          .eq("subcategories.categories.active", true)
+          .order("added_at", { ascending: false }),
+        supabase
+          .from("services")
+          .select(`
+            id,
+            title,
+            slug,
+            description,
+            price,
+            cover_path,
+            document_path,
+            video_path,
+            video_url,
+            whatsapp_phone,
+            added_at,
+            ${catalogRelations}
+          `)
+          .eq("available", true)
+          .eq("subcategories.active", true)
+          .eq("subcategories.categories.active", true)
+          .order("added_at", { ascending: false }),
+      ]);
+
+      const failedResult = [categoriesResult, booksResult, servicesResult].find(
+        (result) => result.error,
+      );
+      if (failedResult?.error) {
+        throw new Error(failedResult.error.message);
+      }
+
+      const categories = (categoriesResult.data ?? []).map((category) => ({
+        ...category,
+        nom: category.name,
+      }));
+      const books = (booksResult.data ?? []).map((book) =>
+        mapCatalogItem(book, "livre"),
+      );
+      const services = (servicesResult.data ?? []).map((service) =>
+        mapCatalogItem(service, "service"),
+      );
+      const merged = [...books, ...services].sort(
+        (a, b) => new Date(b.date_ajout || 0) - new Date(a.date_ajout || 0),
+      );
+
+      if (mounted) {
+        setCategoryOptions(categories);
+        setLivres(merged);
+      }
+    };
+
+    loadCatalog()
+      .catch((loadError) => {
+        if (mounted) {
+          const errorMessage =
+            loadError instanceof Error ? loadError.message : String(loadError);
+          const isNetworkError =
+            loadError instanceof TypeError ||
+            /failed to fetch|networkerror|network request failed/i.test(errorMessage);
+          setLivres([]);
+          setErreur(
+            isNetworkError
+              ? "Connexion à Supabase impossible. Vérifiez l'URL du projet et votre connexion."
+              : errorMessage
+                ? errorMessage
+                : "Impossible de charger le catalogue depuis Supabase.",
+          );
+        }
       })
-      .catch(() => setCategoryOptions([]));
-    return () => { mounted = false; };
+      .finally(() => {
+        if (mounted) setChargement(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
-    // Load the services the current user has already paid for, so we can
-    // show the "Acheté" badge on ServiceCard (mirrors deja_achete for books).
     let mounted = true;
-    if (!user) {
-      setServicesAchetesIds(new Set());
-      return () => { mounted = false; };
-    }
-    purchaseService
-      .myServicePurchases()
-      .then((res) => {
-        if (!mounted) return;
-        const payload = res?.data ?? res ?? [];
-        const list = Array.isArray(payload) ? payload : [];
-        const ids = list
-          .filter((p) => {
-            const s = (p.statut || "").toString().toLowerCase();
-            return s.includes("paye") || s === "payé" || s === "paid";
-          })
-          .map((p) => {
-            if (p.service && typeof p.service === "object") return String(p.service.id);
-            return String(p.service);
-          });
-        setServicesAchetesIds(new Set(ids));
-      })
-      .catch(() => setServicesAchetesIds(new Set()));
-    return () => { mounted = false; };
-  }, [user]);
+    let requestId = 0;
 
-  useEffect(() => {
-    setChargement(true);
-    // Include the search term when requesting from the backend so the DB does the filtering
-    const params = {
-      sous_categorie: sousCategorie || undefined,
-      categorie: categorie || undefined,
-      search: recherche || undefined,
+    const loadPaidServiceOrders = async (userId) => {
+      const currentRequestId = ++requestId;
+      if (!userId) {
+        if (mounted) setServicesAchetesIds(new Set());
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("orders")
+        .select("service_id")
+        .eq("user_id", userId)
+        .eq("status", "paye")
+        .not("service_id", "is", null);
+
+      if (error) {
+        console.error("Impossible de charger les achats de services depuis Supabase.", error);
+        if (mounted && currentRequestId === requestId) {
+          setServicesAchetesIds(new Set());
+        }
+        return;
+      }
+
+      if (mounted && currentRequestId === requestId) {
+        setServicesAchetesIds(
+          new Set((data ?? []).map((order) => String(order.service_id))),
+        );
+      }
     };
 
-    Promise.all([
-      catalogService.getBooks(params),
-      serviceService.getServices(params),
-    ])
-      .then(([booksRes, servicesRes]) => {
-        const books = booksRes?.data || [];
-        const services = servicesRes?.data || [];
-        // Fusionner les deux listes et trier par date d'ajout si disponible
-        const merged = [...books, ...services].sort((a, b) => {
-          const da = new Date(a.date_ajout || a.created_at || 0).getTime();
-          const db = new Date(b.date_ajout || b.created_at || 0).getTime();
-          return db - da;
-        });
-        setLivres(merged);
-      })
-      .catch(() => setLivres([]))
-      .finally(() => setChargement(false));
-  }, [sousCategorie, categorie, recherche]);
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("Impossible de vérifier la session Supabase.", error);
+        return loadPaidServiceOrders(null);
+      }
+      return loadPaidServiceOrders(data.session?.user.id);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => {
+        void loadPaidServiceOrders(session?.user.id ?? null);
+      }, 0);
+    });
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   const livresAffiches = useMemo(() => {
     const terme = normalizeText(recherche);
-    if (!terme) return livres;
-
     return livres.filter((livre) => {
+      if (categorie && livre.categorie_slug !== categorie) return false;
+      if (sousCategorie && livre.sous_categorie_slug !== sousCategorie) return false;
+      if (!terme) return true;
       const haystack = [
         livre.titre,
         livre.description,
@@ -112,7 +245,7 @@ export default function Catalog() {
 
       return normalizeText(haystack).includes(terme);
     });
-  }, [livres, recherche]);
+  }, [livres, categorie, sousCategorie, recherche]);
 
   const categories = categoryOptions.filter(Boolean);
 
@@ -206,7 +339,12 @@ export default function Catalog() {
       </div>
 
       {chargement && <div className="catalog-state">Chargement…</div>}
-      {!chargement && livresAffiches.length === 0 && (
+      {!chargement && erreur && (
+        <div className="catalog-state catalog-empty" role="alert">
+          Le catalogue est temporairement indisponible : {erreur}
+        </div>
+      )}
+      {!chargement && !erreur && livresAffiches.length === 0 && (
         <div className="catalog-state catalog-empty">
           {recherche
             ? `Aucun résultat pour « ${recherche} » dans cette sélection.`
@@ -214,13 +352,13 @@ export default function Catalog() {
         </div>
       )}
 
-      {!chargement && livresAffiches.length > 0 && (
+      {!chargement && !erreur && livresAffiches.length > 0 && (
         <div className="catalog-results-meta">
           {recherche ? `Résultats pour “${recherche}”` : "Tous les ouvrages"} · {livresAffiches.length} trouvé{livresAffiches.length > 1 ? "s" : ""}
         </div>
       )}
 
-      {!chargement && livresAffiches.length > 0 && (
+      {!chargement && !erreur && livresAffiches.length > 0 && (
         <div className="catalog-grid">
           {livresAffiches.map((livre, idx) => (
             <RevealOnScroll key={livre.id} delai={(idx % 8) * 60}>

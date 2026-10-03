@@ -1,6 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { AuthProvider, useAuth, isAdminRole } from "./context/AuthContext";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 const Home = lazy(() => import("./pages/Home"));
@@ -19,8 +19,28 @@ import "./App.css";
 import "./components/reveal-and-cards.css";
 
 function AppRoutes() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const location = useLocation();
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const gsap = window.gsap;
+    const page = document.querySelector(".page-transition-enter");
+    if (!gsap || !page?.children.length) return;
+
+    gsap.fromTo(
+      page.children,
+      { autoAlpha: 0, y: 12 },
+      {
+        autoAlpha: 1,
+        y: 0,
+        duration: 0.42,
+        stagger: 0.045,
+        ease: "power2.out",
+        clearProps: "opacity,visibility,transform",
+      },
+    );
+  }, [location.pathname]);
 
   // Le tableau de bord admin a sa propre interface complète (sidebar +
   // en-tête) : on n'affiche pas le Navbar/Footer du site public par-dessus,
@@ -37,7 +57,7 @@ function AppRoutes() {
         <Route
           path="/espace-admin"
           element={
-            isAdminRole(user) ? (
+            isAdmin ? (
               <AdminDashboard />
             ) : (
               <Navigate to="/connexion" replace />
@@ -68,7 +88,7 @@ function AppRoutes() {
             element={
               !user ? (
                 <Navigate to="/connexion" replace state={{ from: location }} />
-              ) : isAdminRole(user) ? (
+              ) : isAdmin ? (
                 <Navigate to="/espace-admin" replace />
               ) : (
                 <MyLibrary />

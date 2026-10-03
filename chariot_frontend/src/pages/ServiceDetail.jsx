@@ -1,8 +1,11 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { catalogService, serviceService, purchaseService } from "../services/api";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
+import { createOrder } from "../services/orderService";
 import { useAuth } from "../context/AuthContext";
 import ReaderModal from "../components/ReaderModal";
+import PaymentInstructions from "../components/PaymentInstructions";
 import "./BookDetail.css";
 
 export default function ServiceDetail() {
@@ -15,80 +18,121 @@ export default function ServiceDetail() {
   // Payment state
   const [achatEnCours, setAchatEnCours] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({ moyen_paiement: "orange_money", payer_phone: "", reference_transaction: "" });
-  const [paymentErrors, setPaymentErrors] = useState(null);
+  const paymentForm = { moyen_paiement: "orange_money" };
   const [erreur, setErreur] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [hasPaid, setHasPaid] = useState(false);
   const [showContent, setShowContent] = useState(false);
+  const [videoAccessUrl, setVideoAccessUrl] = useState("");
   const [showReaderModal, setShowReaderModal] = useState(false);
   const [purchaseInfo, setPurchaseInfo] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    setLivre(null);
-    setSelectedImage(0);
+    const loadService = async () => {
+      setLivre(null);
+      setSelectedImage(0);
+      try {
+        const { data: service, error } = await supabase
+          .from("services")
+          .select(`
+            id, title, slug, description, price, cover_path, document_path,
+            video_path, video_url, whatsapp_phone, available, subcategories(name, categories(name)),
+            service_images(image_path)
+          `)
+          .eq("slug", slug)
+          .maybeSingle();
+        if (error) throw error;
+        if (!service) {
+          const { data: book, error: bookError } = await supabase
+            .from("books")
+            .select("id")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (bookError) throw bookError;
+          if (book) {
+            if (!cancelled) navigate(`/livre/${slug}`, { replace: true });
+            return;
+          }
+          if (!cancelled) setLivre(false);
+          return;
+        }
 
-    serviceService
-      .getService(slug)
-      .then(({ data }) => {
-        if (!cancelled) setLivre(data);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        catalogService
-          .getBook(slug)
-          .then(({ data }) => {
-            if (!cancelled) setLivre(data);
-          })
-          .catch(() => {
-            if (!cancelled) setLivre(false);
+        const subcategory = Array.isArray(service.subcategories)
+          ? service.subcategories[0]
+          : service.subcategories;
+        const categoryValue = subcategory?.categories;
+        const category = Array.isArray(categoryValue) ? categoryValue[0] : categoryValue;
+        if (!cancelled) {
+          setLivre({
+            id: service.id,
+            titre: service.title,
+            slug: service.slug,
+            description: service.description,
+            prix: service.price,
+            couverture: getStoragePublicUrl("covers", service.cover_path),
+            sous_categorie: subcategory?.name || category?.name || "Service",
+            document: service.document_path,
+            video: service.video_path,
+            video_url: service.video_url,
+            whatsapp_phone: service.whatsapp_phone,
+            images: (service.service_images || []).map((image) => image.image_path),
           });
-      });
+        }
+      } catch (error) {
+        console.error("Impossible de charger le service depuis Supabase.", error);
+        if (!cancelled) setLivre(false);
+      }
+    };
+
+    void loadService();
 
     return () => {
       cancelled = true;
     };
-  }, [slug]);
+  }, [slug, navigate]);
 
   useEffect(() => {
-    if (!user) return undefined;
+    if (!user?.id || !livre?.id) {
+      setHasPaid(false);
+      setPurchaseInfo(null);
+      setShowContent(false);
+      return undefined;
+    }
     let mounted = true;
     let intervalId = null;
 
     const checkPurchases = async () => {
       try {
-        const res = await purchaseService.myServicePurchases();
-        const payload = res?.data ?? res;
-        const purchases = Array.isArray(payload) ? payload : [];
-        const found = purchases.find((p) => {
-          const sid = p.service?.id ?? p.service;
-          return sid === (livre?.id ?? null) || sid === livre;
-        });
+        const { data: order, error } = await supabase
+          .from("orders")
+          .select("id, status, transaction_reference, purchased_at")
+          .eq("user_id", user.id)
+          .eq("service_id", livre.id)
+          .maybeSingle();
+        if (error) throw error;
 
-        if (found) {
-          const statut = (found.statut || "").toString().toUpperCase();
-          const paid = statut === "PAYE" || statut === "PAID";
+        if (order) {
+          const paid = order.status === "paye";
           if (mounted) {
             setHasPaid(paid);
-            setPurchaseInfo(found);
-          }
-
-          if (paid) {
-            if (livre && (!livre.document && !livre.video && !livre.video_url)) {
-              const { data } = await serviceService.getService(slug);
-              if (mounted) setLivre(data);
-            }
-            if (mounted) setShowContent(true);
+            setPurchaseInfo({
+              ...order,
+              statut: order.status,
+              date_achat: order.purchased_at,
+              reference_transaction: order.transaction_reference,
+            });
+            setShowContent(paid);
           }
         } else {
           if (mounted) {
             setHasPaid(false);
             setPurchaseInfo(null);
+            setShowContent(false);
           }
         }
-      } catch (e) {
-        // silent
+      } catch (error) {
+        console.error("Impossible de vérifier la commande du service.", error);
       }
     };
 
@@ -99,11 +143,37 @@ export default function ServiceDetail() {
       mounted = false;
       if (intervalId) clearInterval(intervalId);
     };
-  }, [user, livre?.id, slug]);
+  }, [user?.id, livre?.id]);
+
+  useEffect(() => {
+    let active = true;
+    setVideoAccessUrl("");
+    if (!hasPaid || !livre?.video) return () => { active = false; };
+    if (/^https?:/i.test(livre.video)) {
+      setVideoAccessUrl(livre.video);
+      return () => { active = false; };
+    }
+
+    supabase.storage
+      .from("media")
+      .createSignedUrl(livre.video, 3600)
+      .then(({ data, error }) => {
+        if (error) throw error;
+        if (active) setVideoAccessUrl(data.signedUrl);
+      })
+      .catch((error) => {
+        console.error("Impossible de créer le lien temporaire de la vidéo.", error);
+        if (active) setErreur("La vidéo ne peut pas être chargée pour le moment.");
+      });
+
+    return () => { active = false; };
+  }, [hasPaid, livre?.video]);
 
   const galleryImages = useMemo(() => {
     if (!livre) return [];
-    const extra = Array.isArray(livre.images) ? livre.images.map((img) => img?.image || img?.url || img?.src).filter(Boolean) : [];
+    const extra = Array.isArray(livre.images)
+      ? livre.images.map((image) => typeof image === "string" ? image : image?.image || image?.url || image?.src).filter(Boolean)
+      : [];
     const cover = livre.couverture ? [livre.couverture] : [];
     const merged = [...cover, ...extra];
     return [...new Map(merged.map((url) => [url, url])).values()];
@@ -122,7 +192,6 @@ export default function ServiceDetail() {
       navigate('/connexion');
       return;
     }
-    setPaymentErrors(null);
     setErreur("");
     setConfirmation("");
     setShowPaymentModal(true);
@@ -131,32 +200,20 @@ export default function ServiceDetail() {
   const submitPayment = async (e) => {
     e.preventDefault();
     setAchatEnCours(true);
-    setPaymentErrors(null);
     setErreur("");
     setConfirmation("");
 
     try {
-      await purchaseService.buyService(
-        livre.id,
-        paymentForm.moyen_paiement,
-        paymentForm.reference_transaction || ""
+      const order = await createOrder({
+        serviceId: livre.id,
+        paymentMethod: paymentForm.moyen_paiement,
+      });
+      setConfirmation(
+        `Paiement initié (commande ${order.orderId}). Effectuez le dépôt au numéro indiqué; votre accès sera activé après vérification.`,
       );
-
-      setConfirmation('Demande de paiement enregistrée. L\'admin doit confirmer avant de débloquer le PDF et la vidéo.');
-      setTimeout(() => {
-        navigate('/ma-bibliotheque');
-      }, 1800);
     } catch (err) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') {
-        setPaymentErrors(data);
-        const flat = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | ');
-        setErreur(flat || "Impossible d'initier l'achat. Réessayez.");
-      } else if (typeof data === 'string') {
-        setErreur(data || "Impossible d'initier l'achat. Réessayez.");
-      } else {
-        setErreur("Impossible d'initier l'achat. Réessayez.");
-      }
+      console.error("Impossible d'enregistrer la commande du service.", err);
+      setErreur(err instanceof Error ? err.message : "Impossible d'initier l'achat. Réessayez.");
     } finally {
       setAchatEnCours(false);
     }
@@ -266,10 +323,10 @@ export default function ServiceDetail() {
               </div>
             )}
             
-            {livre.video && (
+            {livre.video && videoAccessUrl && (
               <div className="video-wrapper">
                 <video
-                  src={livre.video}
+                  src={videoAccessUrl}
                   className="detail-video-native"
                   controls // Affiche lecture, pause, barre de progression et volume
                   controlsList="nodownload" // Supprime le bouton de téléchargement (Chrome/Edge/Opera)
@@ -301,74 +358,23 @@ export default function ServiceDetail() {
       </div>
 
       {showReaderModal && (
-        <ReaderModal open={true} livreId={livre.id || null} documentUrl={livre.document || null} onClose={() => setShowReaderModal(false)} />
+        <ReaderModal open={true} serviceId={livre.id || null} onClose={() => setShowReaderModal(false)} />
       )}
 
       {showPaymentModal && (
-        <div className="admin-modal-overlay" onMouseDown={(e) => { if (e.target.classList && e.target.classList.contains('admin-modal-overlay')) { setShowPaymentModal(false); setPaymentErrors(null); } }}>
-          <div className="admin-modal" role="dialog" aria-modal="true">
-            <h3>PAIEMENT — {livre.titre}</h3>
+        <div className="admin-modal-overlay animate__animated animate__fadeIn" onMouseDown={(e) => { if (e.target.classList && e.target.classList.contains('admin-modal-overlay')) { setShowPaymentModal(false); setConfirmation(""); setErreur(""); } }}>
+          <div className="admin-modal animate__animated animate__fadeInUp" role="dialog" aria-modal="true" aria-labelledby="service-payment-title">
+            <h3 id="service-payment-title">Paiement — {livre.titre}</h3>
             {confirmation && <div className="admin-alert admin-alert-success">{confirmation}</div>}
             {erreur && <div className="admin-alert admin-alert-error">{erreur}</div>}
             <form onSubmit={submitPayment}>
-              <label>
-                Moyen de paiement
-                <select value={paymentForm.moyen_paiement} onChange={(e) => setPaymentForm({ ...paymentForm, moyen_paiement: e.target.value })}>
-                  <option value="orange_money">Orange Money</option>
-                  <option value="mtn_momo">MTN Mobile Money</option>
-                </select>
-                {paymentErrors?.moyen_paiement && <div className="field-error">{Array.isArray(paymentErrors.moyen_paiement) ? paymentErrors.moyen_paiement.join(', ') : paymentErrors.moyen_paiement}</div>}
-              </label>
-
-              <label>
-                Numéro de téléphone (utilisé pour le paiement)
-                <input value={paymentForm.payer_phone} onChange={(e) => setPaymentForm({ ...paymentForm, payer_phone: e.target.value })} placeholder="Ex: 221770000000" />
-              </label>
-
-              <label>
-                Référence transaction (optionnelle)
-                <input value={paymentForm.reference_transaction} onChange={(e) => setPaymentForm({ ...paymentForm, reference_transaction: e.target.value })} placeholder="Référence fournie par l'opérateur" />
-                {paymentErrors?.reference_transaction && <div className="field-error">{Array.isArray(paymentErrors.reference_transaction) ? paymentErrors.reference_transaction.join(', ') : paymentErrors.reference_transaction}</div>}
-              </label>
-
-              <div style={{marginTop:12, marginBottom:6}}>
-                <strong>Instructions de paiement</strong>
-                <p style={{margin:'6px 0 8px', color:'#444'}}>Copiez le code ci-dessous et composez-le depuis votre téléphone pour effectuer le paiement manuellement.</p>
-                {(() => {
-                  const merchantCode = '000000';
-                  const merchantNumber = '656877046';
-                  const price = livre ? Number(livre.prix || 0) : 0;
-                  const ussd = paymentForm.moyen_paiement === 'orange_money'
-                    ? `#150*14*${merchantCode}*${merchantNumber}*${price}#`
-                    : `*126*14*${merchantCode}*${merchantNumber}*${price}#`;
-                  return (
-                    <div>
-                      <input readOnly value={ussd} style={{width:'100%', padding:'0.7rem', borderRadius:8, border:'1px solid var(--line)', fontWeight:700}} />
-                      <div style={{display:'flex', gap:8, marginTop:8}}>
-                        <button type="button" className="btn-primary" onClick={async () => {
-                          try {
-                            await navigator.clipboard.writeText(ussd);
-                            setErreur('Code copié dans le presse-papier.');
-                            setTimeout(() => setErreur(''), 3000);
-                          } catch (e) {
-                            setErreur('Impossible de copier — veuillez copier manuellement.');
-                          }
-                        }}>Copier le code</button>
-                        <button type="button" className="btn-outline" onClick={() => {
-                          const tel = `tel:${encodeURIComponent(ussd)}`;
-                          window.location.href = tel;
-                        }}>
-                          Composer
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
+              <PaymentInstructions
+                amount={livre.prix}
+              />
 
               <div style={{display:'flex', gap:8, marginTop:12}}>
-                <button type="submit" className="btn-primary" disabled={achatEnCours}>{achatEnCours ? 'Paiement en cours…' : 'Initier le paiement'}</button>
-                <button type="button" className="btn-outline" onClick={() => { setShowPaymentModal(false); setPaymentErrors(null); setConfirmation(""); setErreur(""); }}>Annuler</button>
+                <button type="submit" className="btn-primary" disabled={achatEnCours || Boolean(confirmation)}>{achatEnCours ? 'Initialisation…' : confirmation ? 'Paiement initié' : "Initier le paiement"}</button>
+                <button type="button" className="btn-outline" onClick={() => { setShowPaymentModal(false); setConfirmation(""); setErreur(""); }}>Fermer</button>
               </div>
             </form>
           </div>

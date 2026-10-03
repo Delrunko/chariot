@@ -1,7 +1,7 @@
 ﻿import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { catalogService } from "../services/api";
-import { useAuth, isAdminRole } from "../context/AuthContext";
+import { useAuth } from "../context/AuthContext";
+import { supabase } from "../lib/supabaseClient";
 import "./Navbar.css";
 import WebCounter from "./WebCounter";
 
@@ -10,13 +10,58 @@ export default function Navbar() {
   const [menuOuvert, setMenuOuvert] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const { user, logout } = useAuth();
+  const { user, isAdmin, signOut } = useAuth();
 
   useEffect(() => {
-    catalogService
-      .getCategories()
-      .then(({ data }) => setCategories(data))
-      .catch(() => setCategories([]));
+    let active = true;
+
+    const loadCategories = async () => {
+      const { data, error } = await supabase
+        .from("categories")
+        .select(`
+          id,
+          name,
+          slug,
+          sort_order,
+          subcategories (
+            id,
+            name,
+            slug,
+            sort_order,
+            active
+          )
+        `)
+        .eq("active", true)
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+
+      if (error) throw error;
+
+      if (active) {
+        setCategories(
+          (data ?? []).map((category) => ({
+            ...category,
+            nom: category.name,
+            sous_categories: (category.subcategories ?? [])
+              .filter((subcategory) => subcategory.active)
+              .sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+              .map((subcategory) => ({
+                ...subcategory,
+                nom: subcategory.name,
+              })),
+          })),
+        );
+      }
+    };
+
+    loadCategories().catch((error) => {
+      console.error("Impossible de charger les catégories depuis Supabase.", error);
+      if (active) setCategories([]);
+    });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -28,7 +73,7 @@ export default function Navbar() {
   const closeMobileMenu = () => setMobileMenuOpen(false);
 
   return (
-    <header className={`navbar ${scrolled ? "navbar-scrolled" : ""} ${isAdminRole(user) ? "navbar-admin" : ""}`}>
+    <header className={`navbar ${scrolled ? "navbar-scrolled" : ""} ${isAdmin ? "navbar-admin" : ""}`}>
       <WebCounter className="web-counter-top" />
       <Link to="/" className="navbar-logo" onClick={closeMobileMenu}>
         <img src="/logo.png" alt="EDS" className="navbar-logo-img" />
@@ -65,11 +110,11 @@ export default function Navbar() {
       <div className="navbar-actions">
         {user ? (
           <>
-          {isAdminRole(user) && (
+          {isAdmin && (
              <Link to="/espace-admin" onClick={closeMobileMenu}>Espace admin</Link>
            )}
-           <Link to={isAdminRole(user) ? "/espace-admin" : "/ma-bibliotheque"} onClick={closeMobileMenu}>Ma bibliothèque</Link>
-           <button onClick={() => { logout(); closeMobileMenu(); }} className="navbar-link-btn">Déconnexion</button>
+           <Link to={isAdmin ? "/espace-admin" : "/ma-bibliotheque"} onClick={closeMobileMenu}>Ma bibliothèque</Link>
+           <button onClick={() => { void signOut(); closeMobileMenu(); }} className="navbar-link-btn">Déconnexion</button>
          </>
        ) : (
          <>
@@ -112,15 +157,15 @@ export default function Navbar() {
 
           {user ? (
             <>
-              {isAdminRole(user) && (
+              {isAdmin && (
                 <Link to="/espace-admin" onClick={closeMobileMenu}>Espace admin</Link>
               )}
-              <Link to={isAdminRole(user) ? "/espace-admin" : "/ma-bibliotheque"} onClick={closeMobileMenu}>Ma bibliothèque</Link>
+              <Link to={isAdmin ? "/espace-admin" : "/ma-bibliotheque"} onClick={closeMobileMenu}>Ma bibliothèque</Link>
               <button
                 type="button"
                 className="navbar-mobile-logout"
                 onClick={() => {
-                  logout();
+                  void signOut();
                   closeMobileMenu();
                 }}
               >

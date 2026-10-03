@@ -4,25 +4,52 @@
 
 ```powershell
 npm install
+Copy-Item chariot_frontend\.env.example chariot_frontend\.env.local
 npm run dev
 ```
 
-L'application tourne sur `http://localhost:5173` et consomme l'API sur
-`http://127.0.0.1:8000/api` (backend Django à lancer en parallèle).
+L'application tourne sur `http://localhost:5173`. En développement, elle utilise
+les variables Supabase `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`, à définir
+dans `chariot_frontend\.env.local`.
+
+Les opérations de commande et de paiement simulé nécessitent les Edge Functions
+Supabase. Depuis la racine du dépôt, copiez la configuration et démarrez-les :
+
+```powershell
+Copy-Item supabase\functions\.env.example supabase\functions\.env
+supabase start
+supabase functions serve --env-file supabase\functions\.env
+```
+
+Pour tester la simulation locale, définissez `DEMO_PAYMENT_ENABLED=true` dans
+`supabase\functions\.env` et `VITE_DEMO_PAYMENT_ENABLED=true` dans
+`chariot_frontend\.env.local`. La simulation est désactivée par défaut et ne doit
+jamais être activée dans un environnement de production : elle confirme une
+commande sans vérifier de transaction auprès d'un opérateur de paiement.
+
+Pour déployer les fonctions de commande, exécutez depuis la racine :
+
+```powershell
+supabase functions deploy create-order
+supabase functions deploy confirm-payment
+```
+
+Ne configurez pas `DEMO_PAYMENT_ENABLED=true` dans le projet Supabase distant.
 
 ## Structure
 
-- `src/services/api.js` — service central (auth JWT, catalogue, achats, bibliothèque)
+- `src/services/api.js` — appels API encore nécessaires à certaines fonctions historiques
+- `src/services/orderService.js` — création de commandes via Supabase Edge Functions
 - `src/context/AuthContext.jsx` — état de connexion global
-- `src/components/Navbar.jsx` — menu dynamique alimenté par `/api/categories/`
+- `src/components/Navbar.jsx` — navigation alimentée par Supabase
 - `src/components/BookCard.jsx` — carte livre (verrouillée si non acheté = effet vitrine)
 - `src/pages/Home.jsx` — accueil / vitrine publicitaire
 - `src/pages/Catalog.jsx` — catalogue filtrable par catégorie
-- `src/pages/BookDetail.jsx` — fiche livre + achat Orange Money
-- `src/pages/MyLibrary.jsx` — bibliothèque personnelle + statut hors-ligne
+- `src/pages/BookDetail.jsx` — fiche livre Supabase + création de commande
+- `src/pages/ServiceDetail.jsx` — fiche service Supabase + création de commande
+- `src/pages/MyLibrary.jsx` — bibliothèque personnelle Supabase
 
 ## À faire en itération suivante
 
-- Lecteur intégré (visionneuse) consommant `/api/library/{id}/read/`
 - Passage en PWA (service worker) pour le cache chiffré hors-ligne réel
-- Intégration réelle Orange Money (actuellement simulée côté backend)
+- Intégration d'un fournisseur de paiement et confirmation par webhook signé

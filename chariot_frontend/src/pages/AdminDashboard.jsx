@@ -1,8 +1,134 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
-import api, { adminService, catalogService, purchaseService, serviceService } from "../services/api";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
 import { useAuth } from "../context/AuthContext";
 import "./AdminDashboard.css";
+
+const slugify = (value) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+
+const safeFileName = (name) =>
+  name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9._-]+/g, "-");
+
+const relation = (value) => (Array.isArray(value) ? value[0] : value);
+
+function formatSupabaseError(error) {
+  if (!error || typeof error !== "object") return "Erreur inconnue.";
+  return [
+    typeof error.message === "string" ? error.message : "",
+    typeof error.code === "string" ? `Code ${error.code}` : "",
+    typeof error.hint === "string" ? error.hint : "",
+  ]
+    .filter(Boolean)
+    .join(" — ") || "Erreur inconnue.";
+}
+
+async function uploadAsset(bucket, path, file, contentType = file.type) {
+  const { error } = await supabase.storage.from(bucket).upload(path, file, {
+    cacheControl: "3600",
+    contentType: contentType || undefined,
+    upsert: false,
+  });
+  if (error) {
+    if (/bucket not found/i.test(error.message)) {
+      throw new Error(
+        `Le bucket Storage "${bucket}" n'existe pas dans ce projet Supabase. Exécutez le script fix_admin_rls.sql dans Supabase Studio, puis réessayez.`,
+      );
+    }
+    throw error;
+  }
+  return path;
+}
+
+async function cleanupUploadedAssets(uploaded) {
+  const results = await Promise.all(
+    uploaded.map(({ bucket, path }) => supabase.storage.from(bucket).remove([path])),
+  );
+  results.forEach(({ error }) => {
+    if (error) console.error("Impossible de nettoyer un fichier téléversé.", error);
+  });
+}
+
+function mapCategory(category) {
+  return {
+    ...category,
+    nom: category.name,
+    ordre: category.sort_order,
+    type_categorie: category.category_type,
+    sous_categories: (category.subcategories || []).map((subcategory) => ({
+      ...subcategory,
+      nom: subcategory.name,
+      categorie: subcategory.category_id,
+      ordre: subcategory.sort_order,
+    })),
+  };
+}
+
+function mapBook(book) {
+  const subcategory = relation(book.subcategories);
+  const category = relation(subcategory?.categories);
+  return {
+    ...book,
+    titre: book.title,
+    prix: book.price,
+    couverture: getStoragePublicUrl("covers", book.cover_path),
+    fichier: book.pdf_path,
+    disponible: book.available,
+    mis_en_avant: book.featured,
+    sous_categorie: subcategory?.id || "",
+    categorie_nom: category?.name || "",
+    sous_categorie_nom: subcategory?.name || "",
+  };
+}
+
+function mapService(service) {
+  const subcategory = relation(service.subcategories);
+  const category = relation(subcategory?.categories);
+  return {
+    ...service,
+    titre: service.title,
+    prix: service.price,
+    couverture: getStoragePublicUrl("covers", service.cover_path),
+    document: service.document_path,
+    video: service.video_path || "",
+    disponible: service.available,
+    sous_categorie: subcategory?.id || "",
+    categorie_nom: category?.name || "",
+    sous_categorie_nom: subcategory?.name || "",
+    images: (service.service_images || []).map((image) => ({
+      ...image,
+      image: getStoragePublicUrl("covers", image.image_path),
+    })),
+  };
+}
+
+function mapOrder(order) {
+  const book = relation(order.book);
+  const service = relation(order.service);
+  const profile = relation(order.profile);
+  const personName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
+  return {
+    ...order,
+    statut: order.status,
+    montant: order.amount,
+    date_achat: order.purchased_at,
+    moyen_paiement: order.payment_method,
+    reference_transaction: order.transaction_reference,
+    utilisateur_username: profile?.username || personName || "Utilisateur",
+    utilisateur__username: profile?.username || personName || "Utilisateur",
+    livre_titre: book?.title || service?.title || "—",
+    livre__titre: book?.title || service?.title || "—",
+    produit_type: book ? "Livre" : "Service",
+    produit_id: book?.id || service?.id,
+  };
+}
 
 const emptyCategoryForm = { nom: "", description: "", ordre: "0", type_categorie: "livre" };
 const emptySubCategoryForm = { nom: "", categorie: "", ordre: "0" };
@@ -28,19 +154,27 @@ const SIDEBAR_SECTIONS = [
   { id: "users", label: "Utilisateurs", icon: "fa-solid fa-users" },
   { id: "purchases", label: "Achats", icon: "fa-solid fa-receipt" },
   { id: "payment", label: "Paiement", icon: "fa-solid fa-money-bill-wave" },
+  { id: "profile", label: "Mon profil", icon: "fa-solid fa-user-pen" },
 ];
 
 export default function AdminDashboard() {
-  const { user, logout } = useAuth();
+  const { user, session, isAdmin, signOut, acceptAuthenticatedProfile } = useAuth();
 
-  if (!user || user.role !== "admin") {
+  if (!user || !isAdmin) {
     return <Navigate to="/connexion" replace />;
   }
 
-  return <AdminDashboardContent user={user} logout={logout} />;
+  return (
+    <AdminDashboardContent
+      user={user}
+      session={session}
+      signOut={signOut}
+      acceptAuthenticatedProfile={acceptAuthenticatedProfile}
+    />
+  );
 }
 
-function AdminDashboardContent({ user, logout }) {
+function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProfile }) {
   const [stats, setStats] = useState({
     total_categories: 0,
     total_sous_categories: 0,
@@ -56,6 +190,7 @@ function AdminDashboardContent({ user, logout }) {
   const [purchases, setPurchases] = useState([]);
   const [recentAchats, setRecentAchats] = useState([]);
   const [quotes, setQuotes] = useState([]);
+  const [quotesError, setQuotesError] = useState("");
   const [showQuoteModal, setShowQuoteModal] = useState(false);
   const [selectedQuote, setSelectedQuote] = useState(null);
   const [categoryForm, setCategoryForm] = useState(emptyCategoryForm);
@@ -79,32 +214,134 @@ function AdminDashboardContent({ user, logout }) {
   const [categoryFormErrors, setCategoryFormErrors] = useState({});
   const [subCategoryFormErrors, setSubCategoryFormErrors] = useState({});
   const [bookFormErrors, setBookFormErrors] = useState({});
-  const [purchaseFormErrors, setPurchaseFormErrors] = useState({});
+  const [profileForm, setProfileForm] = useState({
+    first_name: user.first_name || "",
+    last_name: user.last_name || "",
+    telephone: user.telephone || "",
+  });
+  const [profileSaving, setProfileSaving] = useState(false);
 
   const loadAdminData = async () => {
     try {
-      const [dashboardRes, categoriesRes, booksRes, servicesRes, usersRes, purchasesRes, quotesRes] = await Promise.all([
-        adminService.dashboard(),
-        catalogService.getCategories(),
-        catalogService.getBooks(),
-        serviceService.getServices(),
-        adminService.users(),
-        purchaseService.adminPurchases(),
-        api.get('/quotes/'),
+      const results = await Promise.all([
+        supabase.from("categories").select(`
+          id, name, slug, description, category_type, sort_order, active,
+          subcategories(id, category_id, name, slug, sort_order, active)
+        `).order("sort_order").order("name"),
+        supabase.from("books").select(`
+          id, title, slug, description, subcategory_id, price, cover_path, pdf_path,
+          available, featured, added_at, subcategories(id, name, slug, categories(name))
+        `).order("added_at", { ascending: false }),
+        supabase.from("services").select(`
+          id, title, slug, description, subcategory_id, price, cover_path, document_path,
+          video_path, video_url, available, added_at, whatsapp_phone,
+          subcategories(id, name, slug, categories(name)), service_images(id, image_path, sort_order)
+        `).order("added_at", { ascending: false }),
+        supabase.from("profiles").select("id, username, first_name, last_name, telephone, role, created_at").order("created_at", { ascending: false }),
+        supabase.from("orders").select(`
+          id, user_id, book_id, service_id, status, payment_method, transaction_reference,
+          amount, purchased_at, paid_at, profile:profiles(username, first_name, last_name),
+          book:books(title), service:services(title)
+        `).order("purchased_at", { ascending: false }),
+        supabase.from("categories").select("*", { count: "exact", head: true }),
+        supabase.from("subcategories").select("*", { count: "exact", head: true }),
+        supabase.from("books").select("*", { count: "exact", head: true }),
+        supabase.from("orders").select("*", { count: "exact", head: true }).eq("status", "paye"),
+        supabase.from("profiles").select("*", { count: "exact", head: true }),
       ]);
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw failed.error;
 
-      setStats(dashboardRes.data.stats || {});
-      setRecentAchats(dashboardRes.data.recent_achats || []);
-      setCategories(categoriesRes.data || []);
-      setBooks(booksRes.data || []);
-      setServices(servicesRes.data || []);
+      const [categoriesRes, booksRes, servicesRes, usersRes, ordersRes] = results;
+      const orderRows = (ordersRes.data || []).map(mapOrder);
+      setStats({
+        total_categories: results[5].count || 0,
+        total_sous_categories: results[6].count || 0,
+        total_livres: results[7].count || 0,
+        total_achats: results[8].count || 0,
+        total_utilisateurs: results[9].count || 0,
+      });
+      setRecentAchats(orderRows.slice(0, 8));
+      setCategories((categoriesRes.data || []).map(mapCategory));
+      setBooks((booksRes.data || []).map(mapBook));
+      setServices((servicesRes.data || []).map(mapService));
       setUsers(usersRes.data || []);
-      setPurchases(purchasesRes.data || []);
-      setQuotes(quotesRes.data || []);
+      setPurchases(orderRows);
+      setError("");
+      await loadAdminQuotes();
     } catch (err) {
-      setError("Impossible de charger le tableau de bord administrateur.");
+      console.error("Impossible de charger les données d'administration Supabase.", err);
+      setError(`Impossible de charger le tableau de bord administrateur : ${formatSupabaseError(err)}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAdminQuotes = async () => {
+    try {
+      const { data: quoteRows, error: quoteError } = await supabase
+        .from("quotes")
+        .select("*, category:categories(name)")
+        .order("created_at", { ascending: false });
+
+      if (quoteError) throw quoteError;
+
+      const quoteIds = quoteRows.map((quote) => quote.id);
+      let imagesByQuote = new Map();
+      let warning = "";
+
+      if (quoteIds.length) {
+        const { data: quoteImages, error: imagesError } = await supabase
+          .from("quote_images")
+          .select("id, quote_id, image_path")
+          .in("quote_id", quoteIds);
+
+        if (imagesError) {
+          console.error("Impossible de charger les images des devis.", imagesError);
+          warning = `Les images des devis sont indisponibles : ${formatSupabaseError(imagesError)}`;
+        } else {
+          imagesByQuote = (quoteImages || []).reduce((imagesById, image) => {
+            const images = imagesById.get(image.quote_id) || [];
+            images.push({
+              ...image,
+              image: getStoragePublicUrl("covers", image.image_path),
+            });
+            imagesById.set(image.quote_id, images);
+            return imagesById;
+          }, new Map());
+        }
+      }
+
+      const mappedQuotes = await Promise.all(quoteRows.map(async (quote) => {
+        let pdfUrl = "";
+        if (quote.pdf_path) {
+          const { data: signedData, error: signedError } = await supabase.storage
+            .from("pdfs")
+            .createSignedUrl(quote.pdf_path, 3600);
+          if (signedError) {
+            console.error(`Impossible de créer le lien PDF du devis ${quote.id}.`, signedError);
+            warning = warning || `Le PDF du devis ${quote.id} est indisponible : ${formatSupabaseError(signedError)}`;
+          } else {
+            pdfUrl = signedData.signedUrl;
+          }
+        }
+        return {
+          ...quote,
+          nom: quote.client_name,
+          telephone: quote.client_phone,
+          prix_estime: quote.estimated_price,
+          categorie: relation(quote.category)?.name || "",
+          pdf_file: pdfUrl,
+          images: imagesByQuote.get(quote.id) || [],
+        };
+      }));
+
+      setQuotes(mappedQuotes);
+      setQuotesError(warning);
+    } catch (quoteLoadError) {
+      console.error("Impossible de charger les devis administrateur.", quoteLoadError);
+      setQuotes([]);
+      setQuotesError(`Les devis sont indisponibles : ${formatSupabaseError(quoteLoadError)}`);
     }
   };
 
@@ -119,17 +356,20 @@ function AdminDashboardContent({ user, logout }) {
 
     try {
       const payload = {
-        nom: categoryForm.nom,
+        name: categoryForm.nom.trim(),
+        slug: slugify(categoryForm.nom),
         description: categoryForm.description,
-        ordre: Number(categoryForm.ordre || 0),
-        type_categorie: categoryForm.type_categorie,
+        sort_order: Number(categoryForm.ordre || 0),
+        category_type: categoryForm.type_categorie,
       };
 
       if (editingCategoryId) {
-        await api.patch(`/categories/${editingCategoryId}/`, payload);
+        const { error } = await supabase.from("categories").update(payload).eq("id", editingCategoryId);
+        if (error) throw error;
         setMessage("Catégorie modifiée avec succès.");
       } else {
-        await api.post("/categories/", payload);
+        const { error } = await supabase.from("categories").insert(payload);
+        if (error) throw error;
         setMessage("Catégorie créée avec succès.");
       }
 
@@ -138,15 +378,8 @@ function AdminDashboardContent({ user, logout }) {
       setShowCategoryModal(false);
       await loadAdminData();
     } catch (err) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') {
-        setCategoryFormErrors(data);
-        const flat = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | ');
-        setError(flat);
-      } else {
-        const msg = data ? (typeof data === 'string' ? data : JSON.stringify(data)) : (editingCategoryId ? "La modification de la catégorie a échoué." : "La création de la catégorie a échoué.");
-        setError(msg);
-      }
+      console.error("Échec de l'enregistrement de la catégorie.", err);
+      setError(err instanceof Error ? err.message : "L'enregistrement de la catégorie a échoué.");
     }
   };
 
@@ -157,16 +390,19 @@ function AdminDashboardContent({ user, logout }) {
 
     try {
       const payload = {
-        nom: subCategoryForm.nom,
-        categorie: Number(subCategoryForm.categorie),
-        ordre: Number(subCategoryForm.ordre || 0),
+        name: subCategoryForm.nom.trim(),
+        slug: slugify(subCategoryForm.nom),
+        category_id: subCategoryForm.categorie,
+        sort_order: Number(subCategoryForm.ordre || 0),
       };
 
       if (editingSubCategoryId) {
-        await api.patch(`/sous-categories/${editingSubCategoryId}/`, payload);
+        const { error } = await supabase.from("subcategories").update(payload).eq("id", editingSubCategoryId);
+        if (error) throw error;
         setMessage("Sous-catégorie modifiée avec succès.");
       } else {
-        await api.post("/sous-categories/", payload);
+        const { error } = await supabase.from("subcategories").insert(payload);
+        if (error) throw error;
         setMessage("Sous-catégorie créée avec succès.");
       }
 
@@ -175,15 +411,8 @@ function AdminDashboardContent({ user, logout }) {
       setShowSubCategoryModal(false);
       await loadAdminData();
     } catch (err) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') {
-        setSubCategoryFormErrors(data);
-        const flat = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | ');
-        setError(flat);
-      } else {
-        const msg = data ? (typeof data === 'string' ? data : JSON.stringify(data)) : (editingSubCategoryId ? "La modification de la sous-catégorie a échoué." : "La création de la sous-catégorie a échoué.");
-        setError(msg);
-      }
+      console.error("Échec de l'enregistrement de la sous-catégorie.", err);
+      setError(err instanceof Error ? err.message : "L'enregistrement de la sous-catégorie a échoué.");
     }
   };
 
@@ -197,52 +426,70 @@ function AdminDashboardContent({ user, logout }) {
       return;
     }
 
+    const id = editingBookId || crypto.randomUUID();
+    const existingBook = books.find((book) => book.id === id);
+    if (!bookForm.fichier && !existingBook?.pdf_path) {
+      setError("Sélectionnez le fichier PDF du livre avant de l'enregistrer.");
+      return;
+    }
+    if (
+      bookForm.fichier &&
+      (!bookForm.fichier.name.toLowerCase().endsWith(".pdf") ||
+        (bookForm.fichier.type &&
+          !["application/pdf", "application/octet-stream"].includes(bookForm.fichier.type)))
+    ) {
+      setError("Le fichier du livre doit être un document PDF valide.");
+      return;
+    }
+
+    const uploaded = [];
     try {
-      const formData = new FormData();
-      formData.append("titre", bookForm.titre);
-      formData.append("description", bookForm.description || "");
-      formData.append("sous_categorie", String(bookForm.sous_categorie));
-      formData.append("prix", String(Number(bookForm.prix || 0)));
-      formData.append("disponible", String(bookForm.disponible));
-      formData.append("mis_en_avant", String(bookForm.mis_en_avant));
-
+      let coverPath = existingBook?.cover_path || "";
+      let pdfPath = existingBook?.pdf_path || null;
       if (bookForm.couverture) {
-        formData.append("couverture", bookForm.couverture);
+        coverPath = await uploadAsset(
+          "covers",
+          `books/${id}/${crypto.randomUUID()}-${safeFileName(bookForm.couverture.name)}`,
+          bookForm.couverture,
+        );
+        uploaded.push({ bucket: "covers", path: coverPath });
       }
+      if (!coverPath) throw new Error("Une image de couverture est obligatoire.");
       if (bookForm.fichier) {
-        formData.append("fichier", bookForm.fichier);
+        pdfPath = await uploadAsset(
+          "pdfs",
+          `books/${id}/${crypto.randomUUID()}-${safeFileName(bookForm.fichier.name)}`,
+          bookForm.fichier,
+          "application/pdf",
+        );
+        uploaded.push({ bucket: "pdfs", path: pdfPath });
       }
 
-      if (editingBookId) {
-        await api.patch(`/books/${editingBookId}/`, formData);
-        setMessage(
-          bookForm.fichier
-            ? `Livre modifié. PDF téléversé : ${bookForm.fichier.name}`
-            : "Livre modifié avec succès."
-        );
-      } else {
-        await api.post("/books/", formData);
-        setMessage(
-          bookForm.fichier
-            ? `Livre ajouté. PDF téléversé : ${bookForm.fichier.name}`
-            : "Livre ajouté avec succès."
-        );
-      }
+      const payload = {
+        title: bookForm.titre.trim(),
+        slug: slugify(bookForm.titre),
+        description: bookForm.description || "",
+        subcategory_id: bookForm.sous_categorie,
+        price: Number(bookForm.prix || 0),
+        cover_path: coverPath,
+        pdf_path: pdfPath,
+        available: Boolean(bookForm.disponible),
+        featured: Boolean(bookForm.mis_en_avant),
+      };
+      const result = editingBookId
+        ? await supabase.from("books").update(payload).eq("id", id)
+        : await supabase.from("books").insert({ id, ...payload });
+      if (result.error) throw result.error;
 
+      setMessage(bookForm.fichier ? `Livre enregistré. PDF téléversé : ${bookForm.fichier.name}` : "Livre enregistré avec succès.");
       setBookForm(emptyBookForm);
       setEditingBookId(null);
       setShowBookModal(false);
       await loadAdminData();
     } catch (err) {
-      const data = err?.response?.data;
-      if (data && typeof data === 'object') {
-        setBookFormErrors(data);
-        const flat = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | ');
-        setError(flat);
-      } else {
-        const msg = data ? (typeof data === 'string' ? data : JSON.stringify(data)) : (editingBookId ? "La modification du livre a échoué." : "L’ajout du livre a échoué. Vérifiez les fichiers et les champs requis.");
-        setError(msg);
-      }
+      await cleanupUploadedAssets(uploaded);
+      console.error("Échec de l'enregistrement du livre.", err);
+      setError(formatSupabaseError(err));
     }
   };
 
@@ -252,6 +499,7 @@ function AdminDashboardContent({ user, logout }) {
       categorie_nom: category.nom,
     }))
   );
+  const editingBook = books.find((book) => book.id === editingBookId);
 
   const getSubCategoryIdForBook = (book) => {
     const candidate = book.sous_categorie;
@@ -276,20 +524,19 @@ function AdminDashboardContent({ user, logout }) {
   const [quickHotelForm, setQuickHotelForm] = useState({ titre: "", description: "", prix: "0", sous_categorie: "", couverture: null, images: [], video_url: "" });
   const [quickHotelError, setQuickHotelError] = useState("");
   const [quickHotelMessage, setQuickHotelMessage] = useState("");
-  const [creatingHotellerieCategory, setCreatingHotellerieCategory] = useState(false);
+  const [, setCreatingHotellerieCategory] = useState(false);
 
   // Quick Éloquence add form state (same form as Hôtellerie, no document/pdf)
   const [quickEloquenceForm, setQuickEloquenceForm] = useState({ titre: "", description: "", prix: "0", sous_categorie: "", couverture: null, fichier: null, video: null });
   const [quickEloquenceError, setQuickEloquenceError] = useState("");
   const [quickEloquenceMessage, setQuickEloquenceMessage] = useState("");
-  const [creatingEloquenceCategory, setCreatingEloquenceCategory] = useState(false);
+  const [, setCreatingEloquenceCategory] = useState(false);
 
   // Service edit/delete state
   const [editingService, setEditingService] = useState(null); // service object being edited
   const [serviceEditForm, setServiceEditForm] = useState({ titre: '', description: '', prix: '0', sous_categorie: '', couverture: null, new_images: [], whatsapp_phone: '', disponible: true });
   const [serviceEditErrors, setServiceEditErrors] = useState({});
   const [serviceSaving, setServiceSaving] = useState(false);
-  const [serviceDeleting, setServiceDeleting] = useState(null);
 
   // Accessibility: focus first input when a modal opens and close on ESC
   useEffect(() => {
@@ -349,7 +596,7 @@ function AdminDashboardContent({ user, logout }) {
       ordre: String(category.ordre ?? 0),
       type_categorie: category.type_categorie || "livre",
     });
-    setEditingCategoryId(category.slug);
+    setEditingCategoryId(category.id);
     setMessage("");
     setError("");
     setCategoryFormErrors({});
@@ -362,7 +609,7 @@ function AdminDashboardContent({ user, logout }) {
       categorie: String(subCategory.categorie || ""),
       ordre: String(subCategory.ordre ?? 0),
     });
-    setEditingSubCategoryId(subCategory.slug);
+    setEditingSubCategoryId(subCategory.id);
     setMessage("");
     setError("");
     setSubCategoryFormErrors({});
@@ -380,7 +627,7 @@ function AdminDashboardContent({ user, logout }) {
       couverture: null,
       fichier: null,
     });
-    setEditingBookId(book.slug);
+    setEditingBookId(book.id);
     setMessage("");
     setError("");
     setBookFormErrors({});
@@ -392,15 +639,7 @@ function AdminDashboardContent({ user, logout }) {
     setEditingService(svc);
     setServiceEditErrors({});
     // try to find the numeric subcategory id from loaded categories
-    let sousId = '';
-    try {
-      const candidate = allSubCategories.find((it) => {
-        return String(it.id) === String(svc.sous_categorie) || it.nom === svc.sous_categorie || `${it.categorie_nom} — ${it.nom}` === svc.sous_categorie;
-      });
-      if (candidate) sousId = String(candidate.id);
-    } catch (e) {
-      sousId = String(svc.sous_categorie || '');
-    }
+    const sousId = svc.sous_categorie || "";
 
     setServiceEditForm({
       titre: svc.titre || "",
@@ -419,69 +658,88 @@ function AdminDashboardContent({ user, logout }) {
   };
 
   const submitServiceEdit = async (e) => {
-    e && e.preventDefault();
+    e.preventDefault();
     if (!editingService) return;
     setServiceSaving(true);
     setServiceEditErrors({});
+    const uploaded = [];
     try {
-      const formData = new FormData();
-      formData.append('titre', serviceEditForm.titre);
-      formData.append('description', serviceEditForm.description || '');
-      formData.append('prix', String(Number(serviceEditForm.prix || 0)));
-      formData.append('sous_categorie', String(serviceEditForm.sous_categorie));
-      formData.append('disponible', String(!!serviceEditForm.disponible));
-      formData.append('whatsapp_phone', serviceEditForm.whatsapp_phone || '');
-      if (serviceEditForm.couverture) formData.append('couverture', serviceEditForm.couverture);
-      if (serviceEditForm.document) formData.append('document', serviceEditForm.document);
-      if (serviceEditForm.video) formData.append('video', serviceEditForm.video);
-      if (serviceEditForm.video_url) formData.append('video_url', serviceEditForm.video_url);
-
-      // Update service (PATCH) - backend accepts multipart
-      const { data: updated } = await serviceService.updateService(editingService.slug, formData);
-
-      // If new images were selected, upload them to the images action
-      if (serviceEditForm.new_images && serviceEditForm.new_images.length > 0) {
-        const imagesForm = new FormData();
-        serviceEditForm.new_images.forEach((f) => imagesForm.append('images', f));
-        await serviceService.uploadImages(updated.slug || updated.id, imagesForm);
+      const id = editingService.id;
+      let coverPath = editingService.cover_path;
+      let documentPath = editingService.document_path || null;
+      let videoPath = editingService.video_path || null;
+      if (serviceEditForm.couverture) {
+        coverPath = await uploadAsset(
+          "covers",
+          `services/${id}/${crypto.randomUUID()}-${safeFileName(serviceEditForm.couverture.name)}`,
+          serviceEditForm.couverture,
+        );
+        uploaded.push({ bucket: "covers", path: coverPath });
+      }
+      if (!coverPath) throw new Error("Une image de couverture est obligatoire.");
+      if (serviceEditForm.document) {
+        documentPath = await uploadAsset(
+          "pdfs",
+          `services/${id}/${crypto.randomUUID()}-${safeFileName(serviceEditForm.document.name)}`,
+          serviceEditForm.document,
+          "application/pdf",
+        );
+        uploaded.push({ bucket: "pdfs", path: documentPath });
+      }
+      if (serviceEditForm.video) {
+        videoPath = await uploadAsset(
+          "media",
+          `services/${id}/${crypto.randomUUID()}-${safeFileName(serviceEditForm.video.name)}`,
+          serviceEditForm.video,
+        );
+        uploaded.push({ bucket: "media", path: videoPath });
       }
 
-      // Optimistically update local state
-      setServices((prev) => (prev || []).map((s) => (s.id === updated.id || s.slug === updated.slug ? updated : s)));
+      const payload = {
+        title: serviceEditForm.titre.trim(),
+        slug: slugify(serviceEditForm.titre),
+        description: serviceEditForm.description || "",
+        subcategory_id: serviceEditForm.sous_categorie,
+        price: Number(serviceEditForm.prix || 0),
+        cover_path: coverPath,
+        document_path: documentPath,
+        video_path: videoPath,
+        video_url: serviceEditForm.video_url || "",
+        whatsapp_phone: serviceEditForm.whatsapp_phone || "",
+        available: Boolean(serviceEditForm.disponible),
+      };
+      const { error: updateError } = await supabase.from("services").update(payload).eq("id", id);
+      if (updateError) throw updateError;
+
+      if (serviceEditForm.new_images?.length) {
+        const imagePaths = await Promise.all(serviceEditForm.new_images.map(async (file) => {
+          const path = `services/${id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+          await uploadAsset("covers", path, file);
+          uploaded.push({ bucket: "covers", path });
+          return path;
+        }));
+        const { error: imagesError } = await supabase.from("service_images").insert(
+          imagePaths.map((image_path, index) => ({ service_id: id, image_path, sort_order: index })),
+        );
+        if (imagesError) throw imagesError;
+      }
+
       setEditingService(null);
       setMessage('Service mis à jour.');
-      // Refresh admin data in background
-      loadAdminData().catch(() => {});
+      await loadAdminData();
     } catch (err) {
-      const resp = err?.response;
-      if (resp) {
-        setServiceEditErrors(resp.data || {});
-        const parts = [];
-        const data = resp.data;
-        if (data && typeof data === 'object') {
-          if (data.detail) parts.push(String(data.detail));
-          for (const [k, v] of Object.entries(data)) {
-            if (k === 'detail') continue;
-            const val = Array.isArray(v) ? v.join(' ') : String(v);
-            parts.push(`${k}: ${val}`);
-          }
-          setServiceEditErrors(data);
-          setError(`Erreur ${resp.status}: ${parts.join(' | ')}`);
-        } else {
-          setError(`Erreur ${resp.status}: ${String(data)}`);
-        }
-      } else {
-        setError(err?.message || 'La mise à jour a échoué.');
-      }
+      await cleanupUploadedAssets(uploaded);
+      console.error("Échec de la mise à jour du service.", err);
+      setError(formatSupabaseError(err));
     } finally {
       setServiceSaving(false);
     }
   };
 
   const handleDeleteService = async (svc) => {
-    if (!svc || !svc.slug) return;
+    if (!svc || !svc.id) return;
     // Use the global confirmation modal flow: set the delete target and show the modal
-    setDeleteTarget({ type: 'service', slug: svc.slug, label: svc.titre || svc.slug });
+    setDeleteTarget({ type: 'service', slug: svc.id, label: svc.titre || svc.slug });
     setShowDeleteModal(true);
     setError('');
   };
@@ -492,12 +750,19 @@ function AdminDashboardContent({ user, logout }) {
     if (exists) return exists;
     setCreatingHotellerieCategory(true);
     try {
-      const payload = { nom: "Hôtellerie", description: "Services liés à l'hôtellerie", ordre: 0, type_categorie: "service" };
-      const res = await api.post("/categories/", payload);
+      const { data, error } = await supabase.from("categories").insert({
+        name: "Hôtellerie",
+        slug: "hotellerie",
+        description: "Services liés à l'hôtellerie",
+        sort_order: 0,
+        category_type: "service",
+      }).select("id, name, slug, description, category_type, sort_order, active").single();
+      if (error) throw error;
       await loadAdminData();
-      return res.data;
+      return mapCategory(data);
     } catch (err) {
-      setQuickHotelError("Impossible de créer la catégorie Hôtellerie.");
+      console.error("Impossible de créer la catégorie Hôtellerie.", err);
+      setQuickHotelError(`Impossible de créer la catégorie Hôtellerie : ${formatSupabaseError(err)}`);
       return null;
     } finally {
       setCreatingHotellerieCategory(false);
@@ -510,20 +775,135 @@ function AdminDashboardContent({ user, logout }) {
     if (exists) return exists;
     setCreatingEloquenceCategory(true);
     try {
-      const payload = { nom: "Éloquence", description: "Services et formations en prise de parole", ordre: 0, type_categorie: "service" };
-      const res = await api.post("/categories/", payload);
+      const { data, error } = await supabase.from("categories").insert({
+        name: "Éloquence",
+        slug: "eloquence",
+        description: "Services et formations en prise de parole",
+        sort_order: 0,
+        category_type: "service",
+      }).select("id, name, slug, description, category_type, sort_order, active").single();
+      if (error) throw error;
       await loadAdminData();
-      return res.data;
+      return mapCategory(data);
     } catch (err) {
-      setQuickEloquenceError("Impossible de créer la catégorie Éloquence.");
+      console.error("Impossible de créer la catégorie Éloquence.", err);
+      setQuickEloquenceError(`Impossible de créer la catégorie Éloquence : ${formatSupabaseError(err)}`);
       return null;
     } finally {
       setCreatingEloquenceCategory(false);
     }
   };
 
+  const ensureGeneralSubcategory = async (category) => {
+    const { data: existing, error: lookupError } = await supabase
+      .from("subcategories")
+      .select("id")
+      .eq("category_id", category.id)
+      .eq("name", "Général")
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existing) return existing.id;
+
+    const { data, error } = await supabase
+      .from("subcategories")
+      .insert({ category_id: category.id, name: "Général", slug: "general", sort_order: 0 })
+      .select("id")
+      .single();
+    if (error) throw error;
+    return data.id;
+  };
+
+  const createQuickService = async (form, category, { includeImages = false, pdfFile = null, videoFile = null } = {}) => {
+    const id = crypto.randomUUID();
+    const uploaded = [];
+    let insertedServiceId = null;
+    try {
+      if (!form.couverture) throw new Error("Une image de couverture est obligatoire.");
+      const coverPath = await uploadAsset(
+        "covers",
+        `services/${id}/${crypto.randomUUID()}-${safeFileName(form.couverture.name)}`,
+        form.couverture,
+      );
+      uploaded.push({ bucket: "covers", path: coverPath });
+      const subcategoryId = form.sous_categorie || await ensureGeneralSubcategory(category);
+
+      let documentPath = null;
+      let videoPath = null;
+      if (pdfFile) {
+        documentPath = await uploadAsset(
+          "pdfs",
+          `services/${id}/${crypto.randomUUID()}-${safeFileName(pdfFile.name)}`,
+          pdfFile,
+          "application/pdf",
+        );
+        uploaded.push({ bucket: "pdfs", path: documentPath });
+      }
+      if (videoFile) {
+        videoPath = await uploadAsset(
+          "media",
+          `services/${id}/${crypto.randomUUID()}-${safeFileName(videoFile.name)}`,
+          videoFile,
+        );
+        uploaded.push({ bucket: "media", path: videoPath });
+      }
+
+      const { data: service, error: insertError } = await supabase
+        .from("services")
+        .insert({
+          id,
+          title: form.titre.trim(),
+          slug: slugify(form.titre),
+          description: form.description || "",
+          subcategory_id: subcategoryId,
+          price: Number(form.prix || 0),
+          cover_path: coverPath,
+          document_path: documentPath,
+          video_path: videoPath,
+          video_url: form.video_url || "",
+          available: true,
+          whatsapp_phone: "",
+        })
+        .select("id, title, slug")
+        .single();
+      if (insertError) throw insertError;
+      insertedServiceId = service.id;
+
+      if (includeImages && form.images?.length) {
+        const imagePaths = await Promise.all(form.images.map(async (file) => {
+          const path = `services/${id}/${crypto.randomUUID()}-${safeFileName(file.name)}`;
+          await uploadAsset("covers", path, file);
+          uploaded.push({ bucket: "covers", path });
+          return path;
+        }));
+        const { error: imagesError } = await supabase.from("service_images").insert(
+          imagePaths.map((image_path, index) => ({ service_id: id, image_path, sort_order: index })),
+        );
+        if (imagesError) throw imagesError;
+      }
+
+      await loadAdminData();
+      setLatestAddedService({
+        id: service.id,
+        titre: service.title,
+        slug: service.slug,
+        prix: form.prix,
+        sous_categorie: allSubCategories.find((item) => item.id === subcategoryId)?.nom || "",
+        couverture: getStoragePublicUrl("covers", coverPath),
+        images: form.images || [],
+      });
+      return service;
+    } catch (error) {
+      if (insertedServiceId) {
+        const { error: deleteError } = await supabase.from("services").delete().eq("id", insertedServiceId);
+        if (deleteError) console.error("Impossible d'annuler la création partielle du service.", deleteError);
+      }
+      await cleanupUploadedAssets(uploaded);
+      throw error;
+    }
+  };
+
   const submitQuickHotelItem = async (e) => {
-    e && e.preventDefault();
+    e.preventDefault();
     setQuickHotelError("");
     setQuickHotelMessage("");
 
@@ -535,84 +915,17 @@ function AdminDashboardContent({ user, logout }) {
         return;
       }
 
-      // If no subcategory selected, create a default one (Ex: Général)
-      let sousId = quickHotelForm.sous_categorie;
-      if (!sousId) {
-        const defaultName = "Général";
-        // try to find sous-categorie
-        const existingSub = (category.sous_categories || []).find((s) => (s.nom || "").toLowerCase() === defaultName.toLowerCase());
-        if (existingSub) sousId = existingSub.id;
-        else {
-          const subRes = await api.post("/sous-categories/", { nom: defaultName, categorie: category.id, ordre: 0 });
-          sousId = subRes.data.id;
-          await loadAdminData();
-        }
-      }
-
-      // Create the service (no document/pdf for Hôtellerie)
-      const formData = new FormData();
-      formData.append("titre", quickHotelForm.titre);
-      formData.append("description", quickHotelForm.description || "");
-      formData.append("sous_categorie", String(sousId));
-      formData.append("prix", String(Number(quickHotelForm.prix || 0)));
-      formData.append("disponible", "true");
-      formData.append("mis_en_avant", "false");
-
-      // couverture
-      if (quickHotelForm.couverture) {
-        formData.append("couverture", quickHotelForm.couverture);
-      }
-      // images
-      (quickHotelForm.images || []).forEach((file) => {
-        formData.append("images", file);
-      });
-      // video url
-      if (quickHotelForm.video_url) {
-        formData.append("video_url", quickHotelForm.video_url);
-      }
-
-      const { data } = await api.post("/services/", formData);
-      // Prepend the new service to the local state so it appears immediately
-      if (data) {
-        setServices((prev) => [data, ...(prev || [])]);
-        setLatestAddedService(data);
-      }
+      await createQuickService(quickHotelForm, category, { includeImages: true });
       setQuickHotelMessage("Élément d'hôtellerie ajouté avec succès.");
       setQuickHotelForm({ titre: "", description: "", prix: "0", sous_categorie: "", couverture: null, images: [], video_url: "" });
-      // Refresh admin data in background (keeps data consistent)
-      loadAdminData().catch(() => {});
     } catch (err) {
-      // Provide a detailed error message for the UI
-      try {
-        const resp = err?.response;
-        if (resp) {
-          const status = resp.status;
-          const data = resp.data;
-          if (data && typeof data === 'object') {
-            const parts = [];
-            if (data.detail) parts.push(String(data.detail));
-            for (const [k, v] of Object.entries(data)) {
-              if (k === 'detail') continue;
-              const val = Array.isArray(v) ? v.join(' ') : String(v);
-              parts.push(`${k}: ${val}`);
-            }
-            setQuickHotelError(`Erreur ${status}: ${parts.join(' | ')}`);
-          } else {
-            setQuickHotelError(`Erreur ${status}: ${String(data)}`);
-          }
-        } else if (err?.message) {
-          setQuickHotelError(`Erreur réseau: ${err.message}`);
-        } else {
-          setQuickHotelError('Erreur inconnue lors de l\'ajout.');
-        }
-      } catch (e) {
-        setQuickHotelError('Erreur lors du traitement de la réponse d\'erreur.');
-      }
+      console.error("Échec de l'ajout du service Hôtellerie.", err);
+      setQuickHotelError(formatSupabaseError(err));
     }
   };
 
   const submitQuickEloquenceItem = async (e) => {
-    e && e.preventDefault();
+    e.preventDefault();
     setQuickEloquenceError("");
     setQuickEloquenceMessage("");
 
@@ -624,92 +937,33 @@ function AdminDashboardContent({ user, logout }) {
         return;
       }
 
-      // If no subcategory selected, create a default one (Ex: Général)
-      let sousId = quickEloquenceForm.sous_categorie;
-      if (!sousId) {
-        const defaultName = "Général";
-        const existingSub = (category.sous_categories || []).find((s) => (s.nom || "").toLowerCase() === defaultName.toLowerCase());
-        if (existingSub) sousId = existingSub.id;
-        else {
-          const subRes = await api.post("/sous-categories/", { nom: defaultName, categorie: category.id, ordre: 0 });
-          sousId = subRes.data.id;
-          await loadAdminData();
-        }
-      }
-
-      // Create the service (Éloquence uses same form as Hôtellerie, no document/pdf)
-      const formData = new FormData();
-      formData.append("titre", quickEloquenceForm.titre);
-      formData.append("description", quickEloquenceForm.description || "");
-      formData.append("sous_categorie", String(sousId));
-      formData.append("prix", String(Number(quickEloquenceForm.prix || 0)));
-      formData.append("disponible", "true");
-      formData.append("mis_en_avant", "false");
-
-      if (quickEloquenceForm.couverture) {
-        formData.append("couverture", quickEloquenceForm.couverture);
-      }
-      // Attach the PDF/primary file for Éloquence (same as book 'fichier')
-      if (quickEloquenceForm.fichier) {
-        formData.append("fichier", quickEloquenceForm.fichier);
-      }
-      // Attach direct video file (new for Éloquence)
-      if (quickEloquenceForm.video) {
-        formData.append("video", quickEloquenceForm.video);
-      }
-
-      const { data } = await api.post("/services/", formData);
-      if (data) {
-        setServices((prev) => [data, ...(prev || [])]);
-        setLatestAddedService(data);
-      }
+      await createQuickService(quickEloquenceForm, category, {
+        pdfFile: quickEloquenceForm.fichier,
+        videoFile: quickEloquenceForm.video,
+      });
       setQuickEloquenceMessage("Élément d'Éloquence ajouté avec succès.");
       setQuickEloquenceForm({ titre: "", description: "", prix: "0", sous_categorie: "", couverture: null, fichier: null, video: null });
-      loadAdminData().catch(() => {});
     } catch (err) {
-      try {
-        const resp = err?.response;
-        if (resp) {
-          const status = resp.status;
-          const data = resp.data;
-          if (data && typeof data === 'object') {
-            const parts = [];
-            if (data.detail) parts.push(String(data.detail));
-            for (const [k, v] of Object.entries(data)) {
-              if (k === 'detail') continue;
-              const val = Array.isArray(v) ? v.join(' ') : String(v);
-              parts.push(`${k}: ${val}`);
-            }
-            setQuickEloquenceError(`Erreur ${status}: ${parts.join(' | ')}`);
-          } else {
-            setQuickEloquenceError(`Erreur ${status}: ${String(data)}`);
-          }
-        } else if (err?.message) {
-          setQuickEloquenceError(`Erreur réseau: ${err.message}`);
-        } else {
-          setQuickEloquenceError('Erreur inconnue lors de l\'ajout.');
-        }
-      } catch (e) {
-        setQuickEloquenceError('Erreur lors du traitement de la réponse d\'erreur.');
-      }
+      console.error("Échec de l'ajout du service Éloquence.", err);
+      setQuickEloquenceError(formatSupabaseError(err));
     }
   };
 
   // Open a custom confirmation modal for deletion
-  const handleDeleteCategory = async (slug, label) => {
-    setDeleteTarget({ type: 'category', slug, label: label || slug });
+  const handleDeleteCategory = async (id, label) => {
+    setDeleteTarget({ type: 'category', slug: id, label: label || id });
     setShowDeleteModal(true);
     setError('');
   };
 
-  const handleDeleteSubCategory = async (slug, label) => {
-    setDeleteTarget({ type: 'sub', slug, label: label || slug });
+  const handleDeleteSubCategory = async (id, label) => {
+    setDeleteTarget({ type: 'sub', slug: id, label: label || id });
     setShowDeleteModal(true);
     setError('');
   };
 
-  const handleDeleteBook = async (slug, label) => {
-    setDeleteTarget({ type: 'book', slug, label: label || slug });
+  const handleDeleteBook = async (id, label) => {
+    setDeleteTarget({ type: 'book', slug: id, label: label || id });
     setShowDeleteModal(true);
     setError('');
   };
@@ -721,20 +975,21 @@ function AdminDashboardContent({ user, logout }) {
     setDeletingSlug(slug);
     setError('');
     try {
-      let res;
-      if (type === 'category') res = await api.delete(`/categories/${slug}/`);
-      else if (type === 'sub') res = await api.delete(`/sous-categories/${slug}/`);
-      else if (type === 'book') res = await api.delete(`/books/${slug}/`);
-      else if (type === 'service') res = await serviceService.deleteService(slug);
-      else if (type === 'quote') res = await api.delete(`/quotes/${slug}/`);
-      setMessage(res?.data?.detail || 'Élé­ment supprimé.');
+      let result;
+      if (type === "category") result = await supabase.from("categories").delete().eq("id", slug);
+      else if (type === "sub") result = await supabase.from("subcategories").delete().eq("id", slug);
+      else if (type === "book") result = await supabase.from("books").delete().eq("id", slug);
+      else if (type === "service") result = await supabase.from("services").delete().eq("id", slug);
+      else if (type === "quote") result = await supabase.from("quotes").delete().eq("id", slug);
+      if (result?.error) throw result.error;
+      setMessage("Élément supprimé.");
       setDeleteTarget(null);
       // if a quote was open, close it
       if (type === 'quote') { setSelectedQuote(null); setShowQuoteModal(false); }
       await loadAdminData();
     } catch (err) {
-      const data = err?.response?.data;
-      setError(data ? (typeof data === 'string' ? data : JSON.stringify(data)) : (err.message || 'La suppression a échoué.'));
+      console.error("Échec de la suppression.", err);
+      setError(err instanceof Error ? err.message : "La suppression a échoué.");
     } finally {
       setDeletingSlug(null);
     }
@@ -761,24 +1016,12 @@ function AdminDashboardContent({ user, logout }) {
           computedTotal = Number(q.prix_estime);
         }
       }
-    } catch (e) {
+    } catch {
       computedTotal = null;
     }
 
     setDeleteTarget({ type: 'quote', slug: id, label: `Devis #${id}`, quote: q, total: computedTotal });
     setShowDeleteModal(true);
-  };
-
-  const handleStatusChange = async (id, nextStatus) => {
-    try {
-      await purchaseService.updateStatus(id, nextStatus);
-      setMessage("Statut de l’achat mis à jour.");
-      await loadAdminData();
-    } catch (err) {
-      // try to extract field errors
-      const msg = err?.response?.data ? JSON.stringify(err.response.data) : "La mise à jour du statut a échoué.";
-      setError(msg);
-    }
   };
 
   const [purchaseAdminForm, setPurchaseAdminForm] = useState({ reference_transaction: "" });
@@ -791,54 +1034,103 @@ function AdminDashboardContent({ user, logout }) {
 
   const handleApprovePurchase = async (id) => {
     try {
-      const payload = { statut: 'paye' };
-      if (purchaseAdminForm.reference_transaction) payload.reference_transaction = purchaseAdminForm.reference_transaction;
-      await purchaseService.adminUpdate(id, payload);
+      const { data, error } = await supabase.rpc("admin_update_order", {
+        requested_order_id: id,
+        requested_status: "paye",
+        requested_reference: purchaseAdminForm.reference_transaction || null,
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Cette commande a déjà été traitée.");
       setMessage('Achat approuvé.');
       setShowPurchaseModal(false);
       await loadAdminData();
     } catch (err) {
-      const msg = err?.response?.data ? JSON.stringify(err.response.data) : 'Échec lors de l\'approbation.';
-      setError(msg);
+      console.error("Échec de l'approbation de la commande.", err);
+      setError(err instanceof Error ? err.message : "Échec lors de l'approbation.");
     }
   };
 
   const handleRejectPurchase = async (id) => {
     try {
-      const payload = { statut: 'echoue' };
-      await purchaseService.adminUpdate(id, payload);
+      const { data, error } = await supabase.rpc("admin_update_order", {
+        requested_order_id: id,
+        requested_status: "echoue",
+        requested_reference: null,
+      });
+      if (error) throw error;
+      if (!data) throw new Error("Cette commande a déjà été traitée.");
       setMessage('Achat marqué comme échoué.');
       setShowPurchaseModal(false);
       await loadAdminData();
     } catch (err) {
-      const msg = err?.response?.data ? JSON.stringify(err.response.data) : 'Échec lors du rejet.';
-      setError(msg);
+      console.error("Échec du rejet de la commande.", err);
+      setError(err instanceof Error ? err.message : "Échec lors du rejet.");
     }
   };
 
     // Payment settings handlers
-    const [paymentSettings, setPaymentSettings] = useState({ merchant_code: '000000', merchant_number: '656877046' });
+    const [paymentSettings, setPaymentSettings] = useState({ merchant_number: "656877046" });
     const [paymentSettingsSaving, setPaymentSettingsSaving] = useState(false);
 
     const loadPaymentSettings = async () => {
       try {
-        const res = await purchaseService.getPaymentSettings();
-        setPaymentSettings(res.data);
+        const { data, error } = await supabase
+          .from("payment_config")
+          .select("id, merchant_number")
+          .order("id")
+          .limit(1)
+          .maybeSingle();
+        if (error) throw error;
+        if (data) setPaymentSettings(data);
       } catch (e) {
-        // ignore silently or show a non-blocking message
+        console.error("Impossible de charger la configuration de paiement.", e);
+        setError("Impossible de charger les paramètres de paiement.");
       }
     };
 
     const savePaymentSettings = async () => {
       setPaymentSettingsSaving(true);
       try {
-        await purchaseService.updatePaymentSettings(paymentSettings);
+        const payload = {
+          merchant_number: paymentSettings.merchant_number.trim(),
+        };
+        const result = paymentSettings.id
+          ? await supabase.from("payment_config").update(payload).eq("id", paymentSettings.id)
+          : await supabase.from("payment_config").insert(payload);
+        if (result.error) throw result.error;
         setMessage('Paramètres de paiement mis à jour.');
-        await loadAdminData();
       } catch (e) {
+        console.error("Impossible d'enregistrer la configuration de paiement.", e);
         setError('Échec lors de la sauvegarde des paramètres de paiement.');
       } finally {
         setPaymentSettingsSaving(false);
+      }
+    };
+
+    const saveProfile = async (event) => {
+      event.preventDefault();
+      setProfileSaving(true);
+      setError("");
+      setMessage("");
+      try {
+        const { data, error: profileError } = await supabase
+          .from("profiles")
+          .update({
+            first_name: profileForm.first_name.trim(),
+            last_name: profileForm.last_name.trim(),
+            telephone: profileForm.telephone.trim() || null,
+          })
+          .eq("id", user.id)
+          .select("id, username, first_name, last_name, telephone, role")
+          .single();
+        if (profileError) throw profileError;
+        acceptAuthenticatedProfile(session, data);
+        setMessage("Votre profil a été mis à jour.");
+      } catch (profileError) {
+        console.error("Impossible d'enregistrer le profil administrateur.", profileError);
+        setError(profileError instanceof Error ? profileError.message : "La mise à jour du profil a échoué.");
+      } finally {
+        setProfileSaving(false);
       }
     };
 
@@ -872,9 +1164,9 @@ function AdminDashboardContent({ user, logout }) {
         </nav>
         <div className="admin-sidebar-footer">
           <div className="admin-sidebar-user">
-            <span className="admin-user-pill">{user.username}</span>
+            <span className="admin-user-pill">{user.full_name || user.username || user.email}</span>
           </div>
-          <button type="button" className="btn-outline admin-sidebar-logout" onClick={logout}>
+          <button type="button" className="btn-outline admin-sidebar-logout" onClick={() => { void signOut(); }}>
             Déconnexion
           </button>
         </div>
@@ -1043,7 +1335,7 @@ function AdminDashboardContent({ user, logout }) {
                           <span>{category.nom}</span>
                           <div className="admin-list-actions">
                             <button type="button" className="admin-mini-btn admin-mini-btn-edit" onClick={() => startEditCategory(category)}>Modifier</button>
-                            <button type="button" className="admin-mini-btn admin-mini-btn-delete" onClick={() => handleDeleteCategory(category.slug, category.nom)} disabled={deletingSlug === category.slug}>{deletingSlug === category.slug ? 'Suppression...' : 'Supprimer'}</button>
+                            <button type="button" className="admin-mini-btn admin-mini-btn-delete" onClick={() => handleDeleteCategory(category.id, category.nom)} disabled={deletingSlug === category.id}>{deletingSlug === category.id ? 'Suppression...' : 'Supprimer'}</button>
                           </div>
                         </li>
                       ))}
@@ -1106,7 +1398,7 @@ function AdminDashboardContent({ user, logout }) {
                           <span>{sub.categorie_nom} / {sub.nom}</span>
                           <div className="admin-list-actions">
                             <button type="button" className="admin-mini-btn admin-mini-btn-edit" onClick={() => startEditSubCategory(sub)}>Modifier</button>
-                            <button type="button" className="admin-mini-btn admin-mini-btn-delete" onClick={() => handleDeleteSubCategory(sub.slug, sub.nom)} disabled={deletingSlug === sub.slug}>{deletingSlug === sub.slug ? 'Suppression...' : 'Supprimer'}</button>
+                            <button type="button" className="admin-mini-btn admin-mini-btn-delete" onClick={() => handleDeleteSubCategory(sub.id, sub.nom)} disabled={deletingSlug === sub.id}>{deletingSlug === sub.id ? 'Suppression...' : 'Supprimer'}</button>
                           </div>
                         </li>
                       ))}
@@ -1183,6 +1475,7 @@ function AdminDashboardContent({ user, logout }) {
                         <input
                           type="file"
                           accept="image/*"
+                          required={!editingBook?.cover_path}
                           onChange={(e) => setBookForm({ ...bookForm, couverture: e.target.files?.[0] || null })}
                         />
                       </label>
@@ -1191,6 +1484,7 @@ function AdminDashboardContent({ user, logout }) {
                         <input
                           type="file"
                           accept="application/pdf,.pdf"
+                          required={!editingBook?.pdf_path}
                           onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })}
                         />
                         {bookForm.fichier && (
@@ -1219,7 +1513,7 @@ function AdminDashboardContent({ user, logout }) {
                           <span>{book.titre}</span>
                           <div className="admin-list-actions">
                             <button type="button" className="admin-mini-btn admin-mini-btn-edit" onClick={() => startEditBook(book)}>Modifier</button>
-                            <button type="button" className="admin-mini-btn admin-mini-btn-delete" onClick={() => handleDeleteBook(book.slug, book.titre)} disabled={deletingSlug === book.slug}>{deletingSlug === book.slug ? 'Suppression...' : 'Supprimer'}</button>
+                            <button type="button" className="admin-mini-btn admin-mini-btn-delete" onClick={() => handleDeleteBook(book.id, book.titre)} disabled={deletingSlug === book.id}>{deletingSlug === book.id ? 'Suppression...' : 'Supprimer'}</button>
                           </div>
                         </li>
                       ))}
@@ -1313,13 +1607,13 @@ function AdminDashboardContent({ user, logout }) {
                               {svc.couverture && <img src={svc.couverture} alt={svc.titre} style={{width:56, height:44, objectFit:'cover', borderRadius:6}} />}
                               <div>
                                 <div style={{fontWeight:700}}>{svc.titre}</div>
-                                <div style={{fontSize:'0.85rem', color:'#666'}}>{svc.sous_categorie || ''} • {Number(svc.prix || 0).toLocaleString('fr-FR')} FCFA</div>
+                                <div style={{fontSize:'0.85rem', color:'#666'}}>{svc.sous_categorie_nom || ''} • {Number(svc.prix || 0).toLocaleString('fr-FR')} FCFA</div>
                               </div>
                             </div>
 
                             <div style={{display:'flex', gap:8}}>
                               <button className="btn-outline" onClick={() => startEditService(svc)}>Éditer</button>
-                              <button className="btn-danger" onClick={() => handleDeleteService(svc)} disabled={serviceDeleting === svc.slug}>{serviceDeleting === svc.slug ? 'Suppression…' : 'Supprimer'}</button>
+                              <button className="btn-danger" onClick={() => handleDeleteService(svc)} disabled={deletingSlug === svc.id}>{deletingSlug === svc.id ? 'Suppression…' : 'Supprimer'}</button>
                             </div>
                           </li>
                         ))
@@ -1437,13 +1731,13 @@ function AdminDashboardContent({ user, logout }) {
                                   {svc.couverture && <img src={svc.couverture} alt={svc.titre} style={{width:56, height:44, objectFit:'cover', borderRadius:6}} />}
                                   <div>
                                     <div style={{fontWeight:700}}>{svc.titre}</div>
-                                    <div style={{fontSize:'0.85rem', color:'#666'}}>{svc.sous_categorie || ''} • {Number(svc.prix || 0).toLocaleString('fr-FR')} FCFA</div>
+                                    <div style={{fontSize:'0.85rem', color:'#666'}}>{svc.sous_categorie_nom || ''} • {Number(svc.prix || 0).toLocaleString('fr-FR')} FCFA</div>
                                   </div>
                                 </div>
 
                                 <div style={{display:'flex', gap:8}}>
                                   <button className="btn-outline" onClick={() => startEditService(svc)}>Éditer</button>
-                                  <button className="btn-danger" onClick={() => handleDeleteService(svc)} disabled={serviceDeleting === svc.slug}>{serviceDeleting === svc.slug ? 'Suppression…' : 'Supprimer'}</button>
+                                  <button className="btn-danger" onClick={() => handleDeleteService(svc)} disabled={deletingSlug === svc.id}>{deletingSlug === svc.id ? 'Suppression…' : 'Supprimer'}</button>
                                 </div>
                               </li>
                             ))
@@ -1460,8 +1754,9 @@ function AdminDashboardContent({ user, logout }) {
                               <>
                               <section className="admin-list-card admin-list-card-wide">
                   <h2>Devis reçus</h2>
+                  {quotesError && <div className="admin-alert admin-alert-error">{quotesError}</div>}
                   {quotes.length === 0 ? (
-                    <div className="empty">Aucun devis reçu.</div>
+                    <div className="empty">{quotesError ? "Les devis n'ont pas pu être chargés." : "Aucun devis reçu."}</div>
                   ) : (
                     <div className="table-responsive">
                       <table className="admin-table">
@@ -1543,7 +1838,7 @@ function AdminDashboardContent({ user, logout }) {
                                     }
                                     // fallback to message / raw
                                     return <div>{selectedQuote.message || (selectedQuote.items && String(selectedQuote.items)) || '-'}</div>;
-                                  } catch (e) {
+                                  } catch {
                                     return <div>{selectedQuote.message || selectedQuote.items || '-'}</div>;
                                   }
                                 })()}
@@ -1639,18 +1934,57 @@ function AdminDashboardContent({ user, logout }) {
                     <h2>Paramètres paiement</h2>
                     <div style={{display:'flex', flexDirection:'column', gap:8}}>
                       <label>
-                        Code marchand
-                        <input value={paymentSettings.merchant_code || ''} onChange={(e) => setPaymentSettings({ ...paymentSettings, merchant_code: e.target.value })} />
+                        Numéro Orange Money pour les dépôts
+                        <input type="tel" value={paymentSettings.merchant_number || ''} onChange={(e) => setPaymentSettings({ ...paymentSettings, merchant_number: e.target.value })} required />
                       </label>
-                      <label>
-                        Numéro marchand
-                        <input value={paymentSettings.merchant_number || ''} onChange={(e) => setPaymentSettings({ ...paymentSettings, merchant_number: e.target.value })} />
-                      </label>
+                      <p>Les clients effectueront un dépôt du montant exact directement à ce numéro. Aucun code marchand ni code USSD ne sera affiché.</p>
                       <div style={{display:'flex', gap:8}}>
                         <button className="btn-primary" onClick={savePaymentSettings} disabled={paymentSettingsSaving}>{paymentSettingsSaving ? 'Enregistrement...' : 'Enregistrer'}</button>
                       </div>
                     </div>
                   </div>
+                </section>
+              )}
+
+              {activeSection === "profile" && (
+                <section className="admin-grid">
+                  <form className="admin-card" onSubmit={saveProfile}>
+                    <h2>Mon profil administrateur</h2>
+                    <label>
+                      Prénom
+                      <input
+                        value={profileForm.first_name}
+                        onChange={(event) => setProfileForm({ ...profileForm, first_name: event.target.value })}
+                        autoComplete="given-name"
+                      />
+                    </label>
+                    <label>
+                      Nom
+                      <input
+                        value={profileForm.last_name}
+                        onChange={(event) => setProfileForm({ ...profileForm, last_name: event.target.value })}
+                        autoComplete="family-name"
+                      />
+                    </label>
+                    <label>
+                      Téléphone
+                      <input
+                        type="tel"
+                        value={profileForm.telephone}
+                        onChange={(event) => setProfileForm({ ...profileForm, telephone: event.target.value })}
+                        autoComplete="tel"
+                      />
+                    </label>
+                    <label>
+                      Adresse email
+                      <input type="email" value={user.email || ""} readOnly />
+                    </label>
+                    <div className="admin-form-actions">
+                      <button type="submit" className="btn-primary" disabled={profileSaving}>
+                        {profileSaving ? "Enregistrement…" : "Enregistrer mon profil"}
+                      </button>
+                    </div>
+                  </form>
                 </section>
               )}
 
@@ -1764,12 +2098,12 @@ function AdminDashboardContent({ user, logout }) {
                       </label>
                       <label>
                         Couverture
-                        <input type="file" accept="image/*" onChange={(e) => setBookForm({ ...bookForm, couverture: e.target.files?.[0] || null })} />
+                        <input type="file" accept="image/*" required={!editingBook?.cover_path} onChange={(e) => setBookForm({ ...bookForm, couverture: e.target.files?.[0] || null })} />
                         {bookFormErrors.couverture && <div className="field-error">{Array.isArray(bookFormErrors.couverture) ? bookFormErrors.couverture.join(', ') : bookFormErrors.couverture}</div>}
                       </label>
                       <label>
                         Fichier du livre
-                        <input type="file" accept="application/pdf,.pdf" onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })} />
+                        <input type="file" accept="application/pdf,.pdf" required={!editingBook?.pdf_path} onChange={(e) => setBookForm({ ...bookForm, fichier: e.target.files?.[0] || null })} />
                         {bookForm.fichier && (
                           <small className="book-upload-selection">
                             Sélectionné : {bookForm.fichier.name} ({(bookForm.fichier.size / 1024 / 1024).toFixed(2)} Mo)
@@ -1908,7 +2242,7 @@ function AdminDashboardContent({ user, logout }) {
                                   );
                                 }
                                 return <div>{deleteTarget.quote.message || (deleteTarget.quote.items && String(deleteTarget.quote.items)) || '-'}</div>;
-                              } catch (e) {
+                              } catch {
                                 return <div>{deleteTarget.quote.message || deleteTarget.quote.items || '-'}</div>;
                               }
                             })()}

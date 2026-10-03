@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { catalogService, purchaseService, serviceService } from "../services/api";
+import { supabase } from "../lib/supabaseClient";
+import { getStoragePublicUrl } from "../lib/storageAssets";
+import { createOrder } from "../services/orderService";
 import { useAuth } from "../context/AuthContext";
 import ReaderModal from "../components/ReaderModal";
+import PaymentInstructions from "../components/PaymentInstructions";
 import "./BookDetail.css"; // Assurez-vous que le nouveau CSS est ici
 import "./AdminDashboard.css"; // Réutilisation des styles du modal
 
@@ -18,78 +21,108 @@ export default function BookDetail() {
 
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [paymentForm, setPaymentForm] = useState({ 
-    moyen_paiement: "orange_money", 
-    payer_phone: "", 
-    reference_transaction: "" 
-  });
-  const [paymentErrors, setPaymentErrors] = useState(null);
+  const paymentForm = { moyen_paiement: "orange_money" };
+  const [confirmation, setConfirmation] = useState("");
 
   useEffect(() => {
-    setLivre(null);
-    setLectureOuverte(false);
     let cancelled = false;
 
-    catalogService
-      .getBook(slug)
-      .then(({ data }) => {
-        if (cancelled) return;
-        setLivre(data);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        serviceService
-          .getService(slug)
-          .then(() => {
-            if (cancelled) return;
-            navigate(`/service/${slug}`);
-          })
-          .catch(() => {
-            if (cancelled) return;
-            setLivre(false);
+    const loadBook = async () => {
+      setLivre(null);
+      setLectureOuverte(false);
+      try {
+        const { data: book, error } = await supabase
+          .from("books")
+          .select("id, title, slug, description, price, cover_path, available, subcategories(name, categories(name))")
+          .eq("slug", slug)
+          .maybeSingle();
+        if (error) throw error;
+        if (!book) {
+          const { data: service, error: serviceError } = await supabase
+            .from("services")
+            .select("id")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (serviceError) throw serviceError;
+          if (service) {
+            if (!cancelled) navigate(`/service/${slug}`, { replace: true });
+            return;
+          }
+          if (!cancelled) setLivre(false);
+          return;
+        }
+
+        let alreadyPurchased = false;
+        if (user?.id) {
+          const { data: order, error: orderError } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("user_id", user.id)
+            .eq("book_id", book.id)
+            .eq("status", "paye")
+            .maybeSingle();
+          if (orderError) throw orderError;
+          alreadyPurchased = Boolean(order);
+        }
+
+        if (!cancelled) {
+          const subcategory = Array.isArray(book.subcategories)
+            ? book.subcategories[0]
+            : book.subcategories;
+          const categoryValue = subcategory?.categories;
+          const category = Array.isArray(categoryValue) ? categoryValue[0] : categoryValue;
+          setLivre({
+            id: book.id,
+            titre: book.title,
+            slug: book.slug,
+            description: book.description,
+            prix: book.price,
+            couverture: getStoragePublicUrl("covers", book.cover_path),
+            sous_categorie: subcategory?.name || category?.name || "Livre",
+            deja_achete: alreadyPurchased,
           });
-      });
+        }
+      } catch (error) {
+        console.error("Impossible de charger le livre depuis Supabase.", error);
+        if (!cancelled) setLivre(false);
+      }
+    };
+
+    void loadBook();
 
     return () => {
       cancelled = true;
     };
-  }, [slug, navigate]);
+  }, [slug, navigate, user?.id]);
 
   const acheter = () => {
     if (!user) {
       navigate("/connexion");
       return;
     }
-    setPaymentErrors(null);
+    setErreur("");
+    setConfirmation("");
     setShowPaymentModal(true);
   };
 
   const submitPayment = async (e) => {
     e.preventDefault();
     setAchatEnCours(true);
-    setPaymentErrors(null);
 
     try {
-      const payload = {
-        livre: livre.id,
-        moyen_paiement: paymentForm.moyen_paiement,
-        reference_transaction: paymentForm.reference_transaction || "",
-      };
-
-      await purchaseService.create(payload);
-      navigate("/ma-bibliotheque");
+      const order = await createOrder({
+        bookId: livre.id,
+        paymentMethod: paymentForm.moyen_paiement,
+      });
+      setErreur("");
+      setConfirmation(
+        `Paiement initié (commande ${order.orderId}). Effectuez le dépôt au numéro indiqué; votre accès sera activé après vérification.`,
+      );
     } catch (err) {
-      const data = err?.response?.data || err?.response?.data;
-      if (data && typeof data === "object") {
-        setPaymentErrors(data);
-        const flat = Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`).join(' | ');
-        setErreur(flat);
-      } else {
-        setErreur("Impossible d'initier l'achat. Réessayez.");
-      }
+      console.error("Impossible d'enregistrer la commande.", err);
+      setErreur(err instanceof Error ? err.message : "Impossible d'initier l'achat. Réessayez.");
     } finally {
       setAchatEnCours(false);
-      setShowPaymentModal(false);
     }
   };
 
@@ -173,126 +206,36 @@ export default function BookDetail() {
       )}
 
       {showPaymentModal && (
-        <div 
-          className="admin-modal-overlay" 
-          onMouseDown={(e) => { 
-            if (e.target.classList && e.target.classList.contains('admin-modal-overlay')) { 
-              setShowPaymentModal(false); 
-              setPaymentErrors(null); 
-            } 
+        <div
+          className="admin-modal-overlay animate__animated animate__fadeIn"
+          onMouseDown={(e) => {
+            if (e.target.classList && e.target.classList.contains("admin-modal-overlay")) {
+              setShowPaymentModal(false);
+              setConfirmation("");
+              setErreur("");
+            }
           }}
         >
-          <div className="admin-modal" role="dialog" aria-modal="true">
-            <h3>Paiement — {livre.titre}</h3>
+          <div className="admin-modal animate__animated animate__fadeInUp" role="dialog" aria-modal="true" aria-labelledby="book-payment-title">
+            <h3 id="book-payment-title">Paiement — {livre.titre}</h3>
+            {confirmation && <div className="admin-alert admin-alert-success" role="status">{confirmation}</div>}
             {erreur && <div className="admin-alert admin-alert-error">{erreur}</div>}
-            
             <form onSubmit={submitPayment}>
-              <label>
-                Moyen de paiement
-                <select 
-                  value={paymentForm.moyen_paiement} 
-                  onChange={(e) => setPaymentForm({ ...paymentForm, moyen_paiement: e.target.value })}
-                >
-                  <option value="orange_money">Orange Money</option>
-                  <option value="mtn_momo">MTN Mobile Money</option>
-                </select>
-                {paymentErrors?.moyen_paiement && (
-                  <div className="field-error">
-                    {Array.isArray(paymentErrors.moyen_paiement) ? paymentErrors.moyen_paiement.join(', ') : paymentErrors.moyen_paiement}
-                  </div>
-                )}
-              </label>
-
-              <label>
-                Numéro de téléphone (utilisé pour le paiement)
-                <input 
-                  value={paymentForm.payer_phone} 
-                  onChange={(e) => setPaymentForm({ ...paymentForm, payer_phone: e.target.value })} 
-                  placeholder="Ex: 221770000000" 
-                />
-              </label>
-
-              <label>
-                Référence transaction (optionnelle)
-                <input 
-                  value={paymentForm.reference_transaction} 
-                  onChange={(e) => setPaymentForm({ ...paymentForm, reference_transaction: e.target.value })} 
-                  placeholder="Référence fournie par l'opérateur" 
-                />
-                {paymentErrors?.reference_transaction && (
-                  <div className="field-error">
-                    {Array.isArray(paymentErrors.reference_transaction) ? paymentErrors.reference_transaction.join(', ') : paymentErrors.reference_transaction}
-                  </div>
-                )}
-              </label>
-
-              {/* Bloc d'instructions USSD */}
-              <div style={{marginTop: 12, marginBottom: 6}}>
-                <strong>Instructions de paiement</strong>
-                <p style={{margin: '6px 0 8px', color: '#444'}}>
-                  Copiez le code ci-dessous et composez-le depuis votre téléphone pour effectuer le paiement manuellement.
-                </p>
-                {(() => {
-                  const merchantCode = '000000';
-                  const merchantNumber = '656877046';
-                  const price = livre ? Number(livre.prix || 0) : 0;
-                  const ussd = paymentForm.moyen_paiement === 'orange_money'
-                    ? `#150*14*${merchantCode}*${merchantNumber}*${price}#`
-                    : `*126*14*${merchantCode}*${merchantNumber}*${price}#`;
-                  
-                  return (
-                    <div>
-                      <input 
-                        readOnly 
-                        value={ussd} 
-                        style={{width: '100%', padding: '0.7rem', borderRadius: 8, border: '1px solid var(--line)', fontWeight: 700}} 
-                      />
-                      <div style={{display: 'flex', gap: 8, marginTop: 8}}>
-                        <button 
-                          type="button" 
-                          className="btn-primary" 
-                          onClick={async () => {
-                            try {
-                              await navigator.clipboard.writeText(ussd);
-                              setErreur('Code copié dans le presse-papier.');
-                              setTimeout(() => setErreur(''), 3000);
-                            } catch (e) {
-                              setErreur('Impossible de copier — veuillez copier manuellement.');
-                            }
-                          }}
-                        >
-                          <i className="fas fa-copy"></i> Copier le code
-                        </button>
-                        <button 
-                          type="button" 
-                          className="btn-outline" 
-                          onClick={() => {
-                            const tel = `tel:${encodeURIComponent(ussd)}`;
-                            window.location.href = tel;
-                          }}
-                        >
-                          <i className="fas fa-phone"></i> Composer
-                        </button>
-                      </div>
-                      <small style={{display: 'block', marginTop: 8, color: '#555'}}>
-                        Si votre téléphone ne prend pas en charge la composition automatique, copiez-collez le code dans l'application d'appel et validez.
-                      </small>
-                    </div>
-                  );
-                })()}
-              </div>
+              <PaymentInstructions
+                amount={livre.prix}
+              />
 
               <div className="admin-form-actions">
-                <button type="submit" className="btn-primary" disabled={achatEnCours}>
-                  {achatEnCours ? "Envoi en cours..." : "Initier le paiement"}
+                <button type="submit" className="btn-primary" disabled={achatEnCours || Boolean(confirmation)}>
+                  {achatEnCours ? "Initialisation..." : confirmation ? "Paiement initié" : "Initier le paiement"}
                 </button>
-                <button 
+                <button
                   type="button" 
                   className="btn-outline" 
-                  onClick={() => { setShowPaymentModal(false); setPaymentErrors(null); }}
+                  onClick={() => { setShowPaymentModal(false); setConfirmation(""); setErreur(""); }}
                 >
-                  Annuler
-                </button>
+                  Fermer
+                 </button>
               </div>
             </form>
           </div>
