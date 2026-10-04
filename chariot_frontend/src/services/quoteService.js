@@ -13,8 +13,16 @@ export async function createQuote(quote) {
     event_date: quote.event_date,
     address: quote.address,
     estimated_price: quote.estimated_price,
+    photos_paths: quote.photos_paths ?? [],
   });
 
-  if (error) throw error;
+  if (error) {
+    console.error("INSERT QUOTE KO", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+    });
+    throw error;
+  }
   return { id };
 }

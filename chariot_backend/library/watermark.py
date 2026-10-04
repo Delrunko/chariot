@@ -1,4 +1,5 @@
 import io
+
 import fitz  # PyMuPDF
 
 
@@ -8,39 +9,50 @@ def generer_pdf_filigrane(contenu_pdf, nom_complet, telephone):
     page avec le nom et le numéro de l'acheteur, et renvoie le résultat
     sous forme de bytes en mémoire (rien n'est écrit sur le disque).
     """
+    if not contenu_pdf:
+        raise ValueError("Le PDF source est vide.")
+
     texte = f"{nom_complet} — {telephone}" if telephone else nom_complet
 
-    doc = fitz.open(stream=contenu_pdf, filetype="pdf")
+    try:
+        doc = fitz.open(stream=contenu_pdf, filetype="pdf")
+    except Exception as exc:  # PyMuPDF lève des exceptions spécifiques non couvertes par ValueError.
+        raise ValueError("Le PDF source est invalide ou corrompu.") from exc
 
-    angle_degres = 45
-    matrice_rotation = fitz.Matrix(angle_degres)
+    try:
+        angle_degres = 45
+        matrice_rotation = fitz.Matrix(angle_degres)
 
-    for page in doc:
-        rect = page.rect
-        largeur, hauteur = rect.width, rect.height
+        for page in doc:
+            rect = page.rect
+            largeur, hauteur = rect.width, rect.height
 
-        # Filigrane ajusté: police légèrement plus petite et moins opaque
-        # pour être discret. Espacement augmenté pour réduire la densité.
-        pas_x, pas_y = 420, 300
-        y = 80
-        while y < hauteur:
-            x = 20
-            while x < largeur:
-                point_insertion = fitz.Point(x, y)
-                page.insert_text(
-                    point_insertion,
-                    texte,
-                    fontsize=12,
-                    color=(0.65, 0.65, 0.65),
-                    fill_opacity=0.18,
-                    overlay=True,
-                    morph=(point_insertion, matrice_rotation),
-                )
-                x += pas_x
-            y += pas_y
+            pas_x, pas_y = 420, 300
+            y = 80
+            while y < hauteur:
+                x = 20
+                while x < largeur:
+                    point_insertion = fitz.Point(x, y)
+                    page.insert_text(
+                        point_insertion,
+                        texte,
+                        fontsize=12,
+                        color=(0.65, 0.65, 0.65),
+                        fill_opacity=0.18,
+                        overlay=True,
+                        morph=(point_insertion, matrice_rotation),
+                    )
+                    x += pas_x
+                y += pas_y
 
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    doc.close()
-    buffer.seek(0)
-    return buffer
+        buffer = io.BytesIO()
+        doc.save(buffer)
+        buffer.seek(0)
+        return buffer
+    except Exception as exc:
+        raise ValueError("Le PDF ne peut pas être filigrané.") from exc
+    finally:
+        try:
+            doc.close()
+        except Exception:
+            pass

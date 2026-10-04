@@ -272,6 +272,7 @@ export default function CategoryPage() {
 
   const handleSubmitQuote = async (e) => {
     e.preventDefault();
+    const formElement = e.currentTarget;
     if (quoteForm.event_date && quoteForm.event_date < formatLocalDate(new Date())) {
       setQuoteResult({
         success: false,
@@ -300,11 +301,18 @@ export default function CategoryPage() {
 
       const totalPrix = selected.reduce((sum, s) => sum + ((s.prix || 0) * (s.quantite || 1)), 0);
 
-      const selectedFiles = document.querySelector('input[name="quote_images"]')?.files;
-      if (selectedFiles?.length) {
-        throw new Error(
-          "L'envoi des photos n'est pas encore configuré pour les demandes de devis Supabase. Retirez les photos et réessayez.",
-        );
+      const selectedFiles = Array.from(
+        formElement.querySelector('input[name="quote_images"]')?.files ?? [],
+      );
+      const paths = [];
+      for (const f of selectedFiles) {
+        const p = `${Date.now()}_${f.name}`;
+        const { error: upErr } = await supabase.storage.from("quote-images").upload(p, f);
+        if (upErr) {
+          console.error("UPLOAD KO", upErr);
+          throw upErr;
+        }
+        paths.push(p);
       }
 
       const data = await createQuote({
@@ -317,6 +325,7 @@ export default function CategoryPage() {
         event_date: quoteForm.event_date || null,
         address: quoteForm.address.trim(),
         estimated_price: quoteForm.prix_estime ? Number(quoteForm.prix_estime) : null,
+        photos_paths: paths,
       });
 
       const pdfUrl = data && data.pdf_file ? data.pdf_file : null;
@@ -339,6 +348,7 @@ export default function CategoryPage() {
 
       setQuoteForm({ client_name: "", client_email: "", client_phone: "", message: "", event_date: "", address: "", prix_estime: "" });
       setSelectedItems({});
+      formElement.querySelector('input[name="quote_images"]').value = "";
 
     } catch (err) {
       console.error("Impossible d'enregistrer la demande de devis dans Supabase.", err);

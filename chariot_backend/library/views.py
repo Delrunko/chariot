@@ -164,7 +164,7 @@ class LireLivreView(APIView):
             pdf_filigrane = generer_pdf_filigrane(
                 contenu_pdf, nom_complet, telephone
             )
-        except (RuntimeError, ValueError):
+        except (RuntimeError, ValueError, TypeError):
             logger.exception(
                 "Unable to watermark purchased PDF (user=%s, book=%s).",
                 request.user.pk,
