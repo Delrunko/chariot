@@ -21,10 +21,10 @@ function mapAuthUser(authUser, profile) {
     email: authUser.email,
     full_name: fullName,
     telephone:
-      profile?.telephone ??
-      metadata.phone ??
-      metadata.phone_number ??
-      metadata.telephone ??
+      profile?.telephone ||
+      metadata.phone ||
+      metadata.phone_number ||
+      metadata.telephone ||
       "",
     role: profile?.role === "admin" ? "admin" : "client",
   };

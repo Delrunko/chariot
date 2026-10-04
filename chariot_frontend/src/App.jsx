@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -12,6 +12,7 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 const Login = lazy(() => import("./pages/Login"));
 const Register = lazy(() => import("./pages/Register"));
 const MyLibrary = lazy(() => import("./pages/MyLibrary"));
+const MyProfile = lazy(() => import("./pages/MyProfile"));
 const About = lazy(() => import("./pages/About"));
 const ReaderModal = lazy(() => import("./components/ReaderModal"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
@@ -72,23 +73,27 @@ function AppRoutes() {
 
   if (estEspaceAdmin) {
     return (
-      <Routes>
-        <Route
-          path="/espace-admin"
-          element={
-            isAdmin ? (
-              <AdminDashboard />
-            ) : (
-              <Navigate to="/connexion" replace />
-            )
-          }
-        />
-      </Routes>
+      <>
+        <ProfileCompletionNotice user={user} />
+        <Routes>
+          <Route
+            path="/espace-admin"
+            element={
+              isAdmin ? (
+                <AdminDashboard />
+              ) : (
+                <Navigate to="/connexion" replace />
+              )
+            }
+          />
+        </Routes>
+      </>
     );
   }
 
   return (
     <>
+      <ProfileCompletionNotice user={user} />
       {!isOnline && (
         <div className="offline-notice" role="status">
           Hors connexion : les pages et contenus déjà chargés restent disponibles.
@@ -108,6 +113,16 @@ function AppRoutes() {
           <Route path="/connexion" element={<Login />} />
           <Route path="/inscription" element={<Register />} />
           <Route
+            path="/mon-profil"
+            element={
+              !user ? (
+                <Navigate to="/connexion" replace state={{ from: location }} />
+              ) : (
+                <MyProfile />
+              )
+            }
+          />
+          <Route
             path="/ma-bibliotheque"
             element={
               !user ? (
@@ -126,6 +141,19 @@ function AppRoutes() {
       </main>
       <Footer />
     </>
+  );
+}
+
+function ProfileCompletionNotice({ user }) {
+  const fullName = user?.full_name?.trim();
+  const phone = user?.telephone?.trim();
+  if (!user || (fullName && phone)) return null;
+
+  return (
+    <div className="profile-completion-notice" role="status">
+      <span>Complétez votre profil (nom, téléphone).</span>
+      <Link to="/mon-profil">Compléter</Link>
+    </div>
   );
 }
 

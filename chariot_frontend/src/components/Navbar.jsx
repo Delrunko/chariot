@@ -120,6 +120,7 @@ export default function Navbar() {
              <Link to="/espace-admin" onClick={closeMobileMenu}>Espace admin</Link>
            )}
            <Link to={isAdmin ? "/espace-admin" : "/ma-bibliotheque"} onClick={closeMobileMenu}>Ma bibliothèque</Link>
+           <Link to="/mon-profil" onClick={closeMobileMenu}>Mon profil</Link>
            <button onClick={() => { void signOut(); closeMobileMenu(); }} className="navbar-link-btn">Déconnexion</button>
          </>
        ) : (
@@ -167,6 +168,7 @@ export default function Navbar() {
                 <Link to="/espace-admin" onClick={closeMobileMenu}>Espace admin</Link>
               )}
               <Link to={isAdmin ? "/espace-admin" : "/ma-bibliotheque"} onClick={closeMobileMenu}>Ma bibliothèque</Link>
+              <Link to="/mon-profil" onClick={closeMobileMenu}>Mon profil</Link>
               <button
                 type="button"
                 className="navbar-mobile-logout"

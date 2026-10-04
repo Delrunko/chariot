@@ -82,6 +82,24 @@ main {
   text-align: center;
 }
 
+.profile-completion-notice {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.55rem 1rem;
+  background: #fff7e8;
+  color: #5d4215;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.profile-completion-notice a {
+  color: #8f2024;
+  font-weight: 700;
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;

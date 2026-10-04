@@ -1,0 +1,33 @@
+.my-profile-page {
+  min-height: 60vh;
+  padding: 1rem 1rem 3rem;
+}
+
+.my-profile-form {
+  gap: 0.6rem;
+}
+
+.my-profile-form > p,
+.my-profile-form > small {
+  margin: 0;
+}
+
+.my-profile-form > label {
+  margin-top: 0.3rem;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.my-profile-form > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.my-profile-form > input[readonly] {
+  background: #f3f3f3;
+  color: #555;
+}
+
+.my-profile-form > small {
+  color: var(--ink-muted);
+}
