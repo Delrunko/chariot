@@ -238,6 +238,18 @@
   text-overflow: ellipsis;
 }
 
+.admin-list-card li .admin-user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.admin-list-card li .admin-user-details small {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
 .admin-list-card li strong {
   color: var(--gold);
   font-size: 0.78rem;

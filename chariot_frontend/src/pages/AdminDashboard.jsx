@@ -1911,7 +1911,14 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                     <ul>
                       {users.map((userItem) => (
                         <li key={userItem.id}>
-                          <span>{userItem.username}</span>
+                          <span className="admin-user-details">
+                            <strong>
+                              {[userItem.first_name, userItem.last_name].filter(Boolean).join(" ") ||
+                                userItem.username ||
+                                "Nom non renseigné"}
+                            </strong>
+                            <small>{userItem.telephone || "Téléphone non renseigné"}</small>
+                          </span>
                           <strong>{userItem.role}</strong>
                         </li>
                       ))}

@@ -27,7 +27,7 @@ async function ensureProfileExists(user) {
     username: metadata.username || metadata.preferred_username || null,
     first_name: firstName,
     last_name: lastName,
-    telephone: metadata.phone_number || metadata.telephone || null,
+    telephone: metadata.phone || metadata.phone_number || metadata.telephone || null,
     role: "client",
   });
 

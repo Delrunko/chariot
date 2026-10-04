@@ -20,7 +20,12 @@ function mapAuthUser(authUser, profile) {
     id: authUser.id,
     email: authUser.email,
     full_name: fullName,
-    telephone: profile?.telephone ?? metadata.phone_number ?? "",
+    telephone:
+      profile?.telephone ??
+      metadata.phone ??
+      metadata.phone_number ??
+      metadata.telephone ??
+      "",
     role: profile?.role === "admin" ? "admin" : "client",
   };
 }
@@ -182,7 +187,7 @@ export function AuthProvider({ children }) {
         options: {
           data: {
             full_name: fullName.trim(),
-            phone_number: phone.trim(),
+            phone: phone.trim(),
           },
           emailRedirectTo: `${window.location.origin}/connexion`,
         },
