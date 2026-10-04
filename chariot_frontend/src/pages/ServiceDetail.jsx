@@ -38,7 +38,7 @@ export default function ServiceDetail() {
           .select(`
             id, title, slug, description, price, cover_path, document_path,
             video_path, video_url, whatsapp_phone, available, subcategories(name, categories(name)),
-            service_images(image_path)
+            service_images(image_path, sort_order)
           `)
           .eq("slug", slug)
           .maybeSingle();
@@ -76,7 +76,11 @@ export default function ServiceDetail() {
             video: service.video_path,
             video_url: service.video_url,
             whatsapp_phone: service.whatsapp_phone,
-            images: (service.service_images || []).map((image) => image.image_path),
+            images: (service.service_images || [])
+              .slice()
+              .sort((a, b) => a.sort_order - b.sort_order)
+              .map((image) => getStoragePublicUrl("covers", image.image_path))
+              .filter(Boolean),
           });
         }
       } catch (error) {
