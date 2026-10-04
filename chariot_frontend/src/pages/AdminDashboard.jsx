@@ -220,6 +220,11 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
     telephone: user.telephone || "",
   });
   const [profileSaving, setProfileSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: "",
+    confirmPassword: "",
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   const loadAdminData = async () => {
     try {
@@ -1134,6 +1139,37 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
       }
     };
 
+    const savePassword = async (event) => {
+      event.preventDefault();
+      setError("");
+      setMessage("");
+
+      if (passwordForm.newPassword.length < 8) {
+        setError("Le nouveau mot de passe doit contenir au moins 8 caractères.");
+        return;
+      }
+      if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+        setError("La confirmation du mot de passe ne correspond pas.");
+        return;
+      }
+
+      setPasswordSaving(true);
+      try {
+        const { error: passwordError } = await supabase.auth.updateUser({
+          password: passwordForm.newPassword,
+        });
+        if (passwordError) throw passwordError;
+
+        setPasswordForm({ newPassword: "", confirmPassword: "" });
+        setMessage("Votre mot de passe a été modifié.");
+      } catch (passwordError) {
+        console.error("Impossible de modifier le mot de passe administrateur.", passwordError);
+        setError(`La modification du mot de passe a échoué : ${formatSupabaseError(passwordError)}`);
+      } finally {
+        setPasswordSaving(false);
+      }
+    };
+
     useEffect(() => { loadPaymentSettings(); }, []);
 
   const currentSectionLabel = SIDEBAR_SECTIONS.find((s) => s.id === activeSection)?.label || "";
@@ -1982,6 +2018,43 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                     <div className="admin-form-actions">
                       <button type="submit" className="btn-primary" disabled={profileSaving}>
                         {profileSaving ? "Enregistrement…" : "Enregistrer mon profil"}
+                      </button>
+                    </div>
+                  </form>
+                  <form className="admin-card" onSubmit={savePassword}>
+                    <h2>Modifier mon mot de passe</h2>
+                    <p>Choisissez un mot de passe d’au moins 8 caractères. La modification sera appliquée à votre compte administrateur.</p>
+                    <label>
+                      Nouveau mot de passe
+                      <input
+                        type="password"
+                        value={passwordForm.newPassword}
+                        onChange={(event) => setPasswordForm({
+                          ...passwordForm,
+                          newPassword: event.target.value,
+                        })}
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                      />
+                    </label>
+                    <label>
+                      Confirmer le nouveau mot de passe
+                      <input
+                        type="password"
+                        value={passwordForm.confirmPassword}
+                        onChange={(event) => setPasswordForm({
+                          ...passwordForm,
+                          confirmPassword: event.target.value,
+                        })}
+                        autoComplete="new-password"
+                        minLength={8}
+                        required
+                      />
+                    </label>
+                    <div className="admin-form-actions">
+                      <button type="submit" className="btn-primary" disabled={passwordSaving}>
+                        {passwordSaving ? "Modification…" : "Modifier mon mot de passe"}
                       </button>
                     </div>
                   </form>
