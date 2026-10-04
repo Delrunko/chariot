@@ -224,13 +224,12 @@ export function TestimonialsSection() {
 
     setSubmitting(true);
     try {
-      const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const formData = { name: nom, message: texte, rating };
       const { error } = await supabase.from("testimonials").insert({
-        name: nom.trim(),
-        message: texte.trim(),
-        rating,
+        name: formData.name.trim(),
+        message: formData.message.trim(),
+        rating: Number(formData.rating),
         approved: false,
-        user_id: userId,
       });
       if (error) {
         throw error;
@@ -240,12 +239,14 @@ export function TestimonialsSection() {
       setRating(5);
       setSuccess("Merci ! Votre témoignage a été envoyé pour validation.");
     } catch (err) {
-      console.error(err);
-      setFormError(
-        err instanceof Error && err.message
-          ? err.message
-          : "L'envoi n'est pas encore autorisé par la configuration Supabase. Réessayez plus tard.",
-      );
+      console.error("Impossible d'envoyer le témoignage vers Supabase.", err);
+      const details = [
+        typeof err?.message === "string" ? err.message : "",
+        typeof err?.code === "string" ? `Code ${err.code}` : "",
+        typeof err?.details === "string" ? err.details : "",
+        typeof err?.hint === "string" ? err.hint : "",
+      ].filter(Boolean);
+      setFormError(details.join(" — ") || "Erreur inconnue lors de l'envoi du témoignage.");
     } finally {
       setSubmitting(false);
     }
