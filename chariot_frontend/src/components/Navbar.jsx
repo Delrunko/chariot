@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { loadWithOfflineSnapshot } from "../lib/offlineData";
 import "./Navbar.css";
 import WebCounter from "./WebCounter";
 
@@ -16,30 +17,31 @@ export default function Navbar() {
     let active = true;
 
     const loadCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select(`
-          id,
-          name,
-          slug,
-          sort_order,
-          subcategories (
-            id,
-            name,
-            slug,
-            sort_order,
-            active
-          )
-        `)
-        .eq("active", true)
-        .order("sort_order", { ascending: true })
-        .order("name", { ascending: true });
+      const categoryData = await loadWithOfflineSnapshot(
+        "navigation-categories",
+        async () => {
+          const { data, error } = await supabase
+            .from("categories")
+            .select(`
+              id,
+              name,
+              slug,
+              sort_order,
+              subcategories (
+                id,
+                name,
+                slug,
+                sort_order,
+                active
+              )
+            `)
+            .eq("active", true)
+            .order("sort_order", { ascending: true })
+            .order("name", { ascending: true });
 
-      if (error) throw error;
+          if (error) throw error;
 
-      if (active) {
-        setCategories(
-          (data ?? []).map((category) => ({
+          return (data ?? []).map((category) => ({
             ...category,
             nom: category.name,
             sous_categories: (category.subcategories ?? [])
@@ -49,8 +51,12 @@ export default function Navbar() {
                 ...subcategory,
                 nom: subcategory.name,
               })),
-          })),
-        );
+          }));
+        },
+      );
+
+      if (active) {
+        setCategories(categoryData);
       }
     };
 

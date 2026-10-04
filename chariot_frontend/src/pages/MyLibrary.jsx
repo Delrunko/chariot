@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getStoragePublicUrl } from "../lib/storageAssets";
+import { getOfflineLibrary, saveOfflineLibrary } from "../lib/offlineStorage";
 import { useAuth } from "../context/AuthContext";
 import ReaderModal from "../components/ReaderModal";
 import RestrictedVideoPlayer from "../components/RestrictedVideoPlayer";
@@ -77,13 +78,40 @@ const LIBRARY_ORDER_SELECT = `
 `;
 
 async function fetchUserOrders(userId) {
-  const { data, error } = await supabase
-    .from("orders")
-    .select(LIBRARY_ORDER_SELECT)
-    .eq("user_id", userId)
-    .order("purchased_at", { ascending: false });
-  if (error) throw error;
-  return (data || []).map(mapOrder);
+  const readCachedOrders = async () => {
+    const cachedOrders = await getOfflineLibrary(userId);
+    if (!cachedOrders) {
+      throw new Error("Aucune bibliothèque n'a encore été enregistrée sur cet appareil.");
+    }
+    return cachedOrders;
+  };
+
+  if (!navigator.onLine) return readCachedOrders();
+
+  let orders;
+  try {
+    const { data, error } = await supabase
+      .from("orders")
+      .select(LIBRARY_ORDER_SELECT)
+      .eq("user_id", userId)
+      .order("purchased_at", { ascending: false });
+    if (error) throw error;
+    orders = (data || []).map(mapOrder);
+  } catch (error) {
+    const isNetworkFailure = error instanceof TypeError
+      || /fetch|network|réseau|connexion/i.test(error?.message || "");
+    if (!isNetworkFailure) throw error;
+    const cachedOrders = await readCachedOrders();
+    console.warn("Connexion indisponible : utilisation de la bibliothèque enregistrée sur cet appareil.");
+    return cachedOrders;
+  }
+
+  try {
+    await saveOfflineLibrary(userId, orders);
+  } catch (cacheError) {
+    console.warn("La bibliothèque n'a pas pu être enregistrée pour le mode hors connexion.", cacheError);
+  }
+  return orders;
 }
 
 const formatDate = (date) => {

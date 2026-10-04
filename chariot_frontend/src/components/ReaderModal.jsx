@@ -2,8 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useBookAccess } from "../hooks/useBookAccess";
+import { getOfflineDocument, saveOfflineDocument } from "../lib/offlineStorage";
 import { getSecureServicePdfUrl } from "../services/pdfService";
 import "./ReaderModal.css";
+
+function isConnectivityError(error) {
+  return !navigator.onLine
+    || error instanceof TypeError
+    || /fetch|network|réseau|connexion/i.test(error?.message || "");
+}
 
 export default function ReaderModal({ livreId, serviceId = null, onClose, open = true }) {
   const navigate = useNavigate();
@@ -46,6 +53,28 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
     setSrc("");
     if (conteneurRef.current) conteneurRef.current.innerHTML = "";
     let isMounted = true;
+    const documentType = serviceId ? "service" : "book";
+    const documentId = serviceId || resolvedId;
+
+    const loadOfflinePdf = async () => {
+      if (!user?.id || !documentId) return false;
+
+      try {
+        const cachedBlob = await getOfflineDocument(user.id, documentType, documentId);
+        if (!cachedBlob || !isMounted) return false;
+        const url = URL.createObjectURL(cachedBlob);
+        ownedUrlRef.current = url;
+        setSrc(url);
+        setErreur("");
+        setStatusMessage("Document ouvert depuis cet appareil, sans connexion.");
+        setChargement(false);
+        return true;
+      } catch (error) {
+        console.warn("Impossible de lire le document enregistré hors connexion.", error);
+        return false;
+      }
+    };
+
     const loadPdf = async (signedUrl) => {
       setChargement(true);
       setErreur("");
@@ -57,6 +86,13 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
         }
         const blob = await response.blob();
         if (!blob.size) throw new Error("Le fichier PDF est vide.");
+        if (user?.id && documentId) {
+          try {
+            await saveOfflineDocument(user.id, documentType, documentId, blob);
+          } catch (cacheError) {
+            console.warn("Le document ne pourra pas être relu hors connexion sur cet appareil.", cacheError);
+          }
+        }
         if (isMounted) {
           const url = URL.createObjectURL(blob);
           ownedUrlRef.current = url;
@@ -65,6 +101,7 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
         }
       } catch (error) {
         if (isMounted) {
+          if (isConnectivityError(error) && await loadOfflinePdf()) return;
           setErreur(error instanceof Error ? error.message : "Le document est inaccessible.");
           setStatusMessage("");
         }
@@ -73,7 +110,18 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
       }
     }
 
-    if (serviceId) {
+    if (!navigator.onLine) {
+      setChargement(true);
+      setErreur("");
+      setStatusMessage("Recherche du document enregistré sur cet appareil...");
+      void loadOfflinePdf().then((loaded) => {
+        if (isMounted && !loaded) {
+          setErreur("Ce document n'a pas encore été enregistré sur cet appareil. Connectez-vous à Internet pour le charger une première fois.");
+          setStatusMessage("");
+          setChargement(false);
+        }
+      });
+    } else if (serviceId) {
       setChargement(true);
       setErreur("");
       setStatusMessage("Vérification de votre achat...");
@@ -81,6 +129,16 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
         .then(loadPdf)
         .catch((error) => {
           if (!isMounted) return;
+          if (isConnectivityError(error)) {
+            void loadOfflinePdf().then((loaded) => {
+              if (isMounted && !loaded) {
+                setErreur(error instanceof Error ? error.message : "Le document est inaccessible.");
+                setStatusMessage("");
+                setChargement(false);
+              }
+            });
+            return;
+          }
           setErreur(error instanceof Error ? error.message : "Le document est inaccessible.");
           setStatusMessage("");
           setChargement(false);
@@ -93,9 +151,19 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
       setChargement(true);
       setStatusMessage("Vérification de votre achat...");
     } else if (bookAccess.error) {
-      setErreur(bookAccess.error);
-      setStatusMessage("");
-      setChargement(false);
+      if (isConnectivityError(new Error(bookAccess.error))) {
+        void loadOfflinePdf().then((loaded) => {
+          if (isMounted && !loaded) {
+            setErreur(bookAccess.error);
+            setStatusMessage("");
+            setChargement(false);
+          }
+        });
+      } else {
+        setErreur(bookAccess.error);
+        setStatusMessage("");
+        setChargement(false);
+      }
     } else if (bookAccess.url) {
       void loadPdf(bookAccess.url);
     }
@@ -109,6 +177,7 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
     serviceId,
     open,
     retryCount,
+    user?.id,
     bookAccess.isLoading,
     bookAccess.url,
     bookAccess.error,

@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import { warmPublicCatalog } from "./services/publicCatalog";
 const Home = lazy(() => import("./pages/Home"));
 const Catalog = lazy(() => import("./pages/Catalog"));
 const BookDetail = lazy(() => import("./pages/BookDetail"));
@@ -21,6 +22,24 @@ import "./components/reveal-and-cards.css";
 function AppRoutes() {
   const { user, loading, isAdmin } = useAuth();
   const location = useLocation();
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  useEffect(() => {
+    const updateConnectionStatus = () => setIsOnline(navigator.onLine);
+    window.addEventListener("online", updateConnectionStatus);
+    window.addEventListener("offline", updateConnectionStatus);
+    return () => {
+      window.removeEventListener("online", updateConnectionStatus);
+      window.removeEventListener("offline", updateConnectionStatus);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.onLine) return;
+    warmPublicCatalog().catch((error) => {
+      console.warn("Impossible de préparer le catalogue hors ligne.", error);
+    });
+  }, []);
 
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -70,6 +89,11 @@ function AppRoutes() {
 
   return (
     <>
+      {!isOnline && (
+        <div className="offline-notice" role="status">
+          Hors connexion : les pages et contenus déjà chargés restent disponibles.
+        </div>
+      )}
       <Navbar />
       {/* La clé sur location.pathname force un remontage à chaque
           changement de page, ce qui relance l'animation CSS d'entrée

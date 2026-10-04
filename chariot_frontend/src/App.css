@@ -73,6 +73,15 @@ main {
   font-weight: 700;
 }
 
+.offline-notice {
+  padding: 0.55rem 1rem;
+  background: var(--safety-deep);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;

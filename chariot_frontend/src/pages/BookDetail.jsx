@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getStoragePublicUrl } from "../lib/storageAssets";
+import { loadWithOfflineSnapshot } from "../lib/offlineData";
 import { createOrder } from "../services/orderService";
 import { useAuth } from "../context/AuthContext";
 import ReaderModal from "../components/ReaderModal";
@@ -31,12 +32,15 @@ export default function BookDetail() {
       setLivre(null);
       setLectureOuverte(false);
       try {
-        const { data: book, error } = await supabase
-          .from("books")
-          .select("id, title, slug, description, price, cover_path, available, subcategories(name, categories(name))")
-          .eq("slug", slug)
-          .maybeSingle();
-        if (error) throw error;
+        const book = await loadWithOfflineSnapshot(`book-detail:${slug}`, async () => {
+          const { data, error } = await supabase
+            .from("books")
+            .select("id, title, slug, description, price, cover_path, available, subcategories(name, categories(name))")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (error) throw error;
+          return data;
+        });
         if (!book) {
           const { data: service, error: serviceError } = await supabase
             .from("services")
@@ -55,14 +59,17 @@ export default function BookDetail() {
         let alreadyPurchased = false;
         if (user?.id) {
           const { data: order, error: orderError } = await supabase
-            .from("orders")
-            .select("id")
-            .eq("user_id", user.id)
-            .eq("book_id", book.id)
-            .eq("status", "paye")
-            .maybeSingle();
-          if (orderError) throw orderError;
-          alreadyPurchased = Boolean(order);
+              .from("orders")
+              .select("id")
+              .eq("user_id", user.id)
+              .eq("book_id", book.id)
+              .eq("status", "paye")
+              .maybeSingle();
+          if (orderError) {
+            console.error("Impossible de vérifier l'achat du livre.", orderError);
+          } else {
+            alreadyPurchased = Boolean(order);
+          }
         }
 
         if (!cancelled) {

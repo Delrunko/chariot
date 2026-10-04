@@ -1,0 +1,19 @@
+{
+  "name": "EDS — Librairie technique en ligne",
+  "short_name": "EDS",
+  "description": "Outils pédagogiques pour apprendre et réviser, même hors connexion.",
+  "lang": "fr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f1e4",
+  "theme_color": "#171717",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

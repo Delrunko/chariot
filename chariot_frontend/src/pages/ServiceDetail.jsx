@@ -2,6 +2,7 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getStoragePublicUrl } from "../lib/storageAssets";
+import { loadWithOfflineSnapshot } from "../lib/offlineData";
 import { createOrder } from "../services/orderService";
 import { useAuth } from "../context/AuthContext";
 import ReaderModal from "../components/ReaderModal";
@@ -33,16 +34,19 @@ export default function ServiceDetail() {
       setLivre(null);
       setSelectedImage(0);
       try {
-        const { data: service, error } = await supabase
-          .from("services")
-          .select(`
-            id, title, slug, description, price, cover_path, document_path,
-            video_path, video_url, whatsapp_phone, available, subcategories(name, categories(name)),
-            service_images(image_path, sort_order)
-          `)
-          .eq("slug", slug)
-          .maybeSingle();
-        if (error) throw error;
+        const service = await loadWithOfflineSnapshot(`service-detail:${slug}`, async () => {
+          const { data, error } = await supabase
+            .from("services")
+            .select(`
+              id, title, slug, description, price, cover_path, document_path,
+              video_path, video_url, whatsapp_phone, available, subcategories(name, categories(name)),
+              service_images(image_path, sort_order)
+            `)
+            .eq("slug", slug)
+            .maybeSingle();
+          if (error) throw error;
+          return data;
+        });
         if (!service) {
           const { data: book, error: bookError } = await supabase
             .from("books")

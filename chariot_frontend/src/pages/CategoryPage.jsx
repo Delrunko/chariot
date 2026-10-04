@@ -2,6 +2,7 @@
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getStoragePublicUrl } from "../lib/storageAssets";
+import { loadWithOfflineSnapshot } from "../lib/offlineData";
 import { createQuote } from "../services/quoteService";
 import { buildWhatsAppLink } from "../utils/whatsappLink";
 import BookCard from "../components/BookCard";
@@ -84,86 +85,90 @@ export default function CategoryPage() {
     setLoadError(null);
 
     const loadCategory = async () => {
-      const [categoryResult, booksResult, servicesResult] = await Promise.all([
-        supabase
-          .from("categories")
-          .select("id, name, slug")
-          .eq("slug", slug)
-          .eq("active", true)
-          .maybeSingle(),
-        supabase
-          .from("books")
-          .select(`
-            id,
-            title,
-            slug,
-            description,
-            price,
-            cover_path,
-            added_at,
-            ${categoryItemRelations}
-          `)
-          .eq("available", true)
-          .eq("subcategories.categories.slug", slug)
-          .eq("subcategories.active", true)
-          .eq("subcategories.categories.active", true)
-          .order("added_at", { ascending: false }),
-        supabase
-          .from("services")
-          .select(`
-            id,
-            title,
-            slug,
-            description,
-            price,
-            cover_path,
-            document_path,
-            video_path,
-            video_url,
-            whatsapp_phone,
-            added_at,
-            ${categoryItemRelations}
-          `)
-          .eq("available", true)
-          .eq("subcategories.categories.slug", slug)
-          .eq("subcategories.active", true)
-          .eq("subcategories.categories.active", true)
-          .order("added_at", { ascending: false }),
-      ]);
+      const { category: foundCategory, items: categoryItems } =
+        await loadWithOfflineSnapshot(`category:${slug}`, async () => {
+          const [categoryResult, booksResult, servicesResult] = await Promise.all([
+            supabase
+              .from("categories")
+              .select("id, name, slug")
+              .eq("slug", slug)
+              .eq("active", true)
+              .maybeSingle(),
+            supabase
+              .from("books")
+              .select(`
+                id,
+                title,
+                slug,
+                description,
+                price,
+                cover_path,
+                added_at,
+                ${categoryItemRelations}
+              `)
+              .eq("available", true)
+              .eq("subcategories.categories.slug", slug)
+              .eq("subcategories.active", true)
+              .eq("subcategories.categories.active", true)
+              .order("added_at", { ascending: false }),
+            supabase
+              .from("services")
+              .select(`
+                id,
+                title,
+                slug,
+                description,
+                price,
+                cover_path,
+                document_path,
+                video_path,
+                video_url,
+                whatsapp_phone,
+                added_at,
+                ${categoryItemRelations}
+              `)
+              .eq("available", true)
+              .eq("subcategories.categories.slug", slug)
+              .eq("subcategories.active", true)
+              .eq("subcategories.categories.active", true)
+              .order("added_at", { ascending: false }),
+          ]);
 
-      const failedResult = [categoryResult, booksResult, servicesResult].find(
-        (result) => result.error,
-      );
-      if (failedResult?.error) {
-        throw new Error(failedResult.error.message);
-      }
+          const failedResult = [categoryResult, booksResult, servicesResult].find(
+            (result) => result.error,
+          );
+          if (failedResult?.error) {
+            throw new Error(failedResult.error.message);
+          }
 
-      const books = (booksResult.data ?? []).map((book) =>
-        mapCategoryItem(book, "livre"),
-      );
-      const services = (servicesResult.data ?? []).map((service) =>
-        mapCategoryItem(service, "service"),
-      );
+          const books = (booksResult.data ?? []).map((book) =>
+            mapCategoryItem(book, "livre"),
+          );
+          const services = (servicesResult.data ?? []).map((service) =>
+            mapCategoryItem(service, "service"),
+          );
+          return {
+            category: categoryResult.data
+              ? { ...categoryResult.data, nom: categoryResult.data.name }
+              : { slug, nom: formatCategoryName(slug) },
+            items: [...books, ...services].sort(
+              (a, b) => new Date(b.date_ajout || 0) - new Date(a.date_ajout || 0),
+            ),
+          };
+        });
       const term = (searchParams.get("q") || "").trim().toLocaleLowerCase("fr-FR");
-      const merged = [...books, ...services]
-        .filter((item) => {
+      const filteredItems = categoryItems.filter((item) => {
           if (!term) return true;
           return [item.titre, item.description, item.sous_categorie]
             .filter(Boolean)
             .join(" ")
             .toLocaleLowerCase("fr-FR")
             .includes(term);
-        })
-        .sort((a, b) => new Date(b.date_ajout || 0) - new Date(a.date_ajout || 0));
+        });
 
       if (mounted) {
-        const foundCategory = categoryResult.data;
-        setCategory(
-          foundCategory
-            ? { ...foundCategory, nom: foundCategory.name }
-            : { slug, nom: formatCategoryName(slug) },
-        );
-        setItems(merged);
+        setCategory(foundCategory);
+        setItems(filteredItems);
       }
     };
 

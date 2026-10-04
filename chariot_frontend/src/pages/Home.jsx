@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
 import { getStoragePublicUrl } from "../lib/storageAssets";
+import { loadWithOfflineSnapshot } from "../lib/offlineData";
 import BookShelfCarousel from "../components/BookShelfCarousel";
 import {
   StatsSection,
@@ -25,26 +26,28 @@ export default function Home() {
     let active = true;
 
     const loadFeaturedBooks = async () => {
-      const { data, error } = await supabase
-        .from("books")
-        .select("id, title, slug, cover_path, price, featured, added_at")
-        .eq("available", true)
-        .eq("featured", true)
-        .order("added_at", { ascending: false })
-        .limit(6);
+      const books = await loadWithOfflineSnapshot("home-featured-books", async () => {
+        const { data, error } = await supabase
+          .from("books")
+          .select("id, title, slug, cover_path, price, featured, added_at")
+          .eq("available", true)
+          .eq("featured", true)
+          .order("added_at", { ascending: false })
+          .limit(6);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (active) {
-        setLivres(
-          (data ?? []).map((book) => ({
+        return (data ?? []).map((book) => ({
             ...book,
             titre: book.title,
             couverture: getStoragePublicUrl("covers", book.cover_path),
             prix: book.price,
             date_ajout: book.added_at,
-          })),
-        );
+          }));
+      });
+
+      if (active) {
+        setLivres(books);
       }
     };
 

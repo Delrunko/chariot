@@ -1,57 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "../lib/supabaseClient";
-import { getStoragePublicUrl } from "../lib/storageAssets";
+import { loadPublicCatalog } from "../services/publicCatalog";
 import BookCard from "../components/BookCard";
 import RevealOnScroll from "../components/RevealOnScroll";
 import ServiceCard from "../components/ServiceCard";
 import "./Home.css";
-
-const catalogRelations = `
-  subcategories!inner (
-    id,
-    name,
-    slug,
-    active,
-    categories!inner (
-      id,
-      name,
-      slug,
-      category_type,
-      active
-    )
-  )
-`;
-
-const relationRecord = (value) => (Array.isArray(value) ? value[0] : value);
-
-function mapCatalogItem(item, type) {
-  const subcategory = relationRecord(item.subcategories);
-  const category = relationRecord(subcategory?.categories);
-
-  return {
-    id: item.id,
-    titre: item.title,
-    slug: item.slug,
-    description: item.description,
-    prix: item.price,
-    couverture: getStoragePublicUrl("covers", item.cover_path),
-    date_ajout: item.added_at,
-    categorie: category?.name ?? "",
-    categorie_slug: category?.slug ?? "",
-    sous_categorie: subcategory?.name ?? "",
-    sous_categorie_slug: subcategory?.slug ?? "",
-    type_categorie: type,
-    ...(type === "service"
-      ? {
-          document: item.document_path,
-          video: item.video_path,
-          video_url: item.video_url,
-          whatsapp_phone: item.whatsapp_phone,
-        }
-      : {}),
-  };
-}
 
 const normalizeText = (value = "") =>
   String(value)
@@ -76,75 +30,11 @@ export default function Catalog() {
     let mounted = true;
 
     const loadCatalog = async () => {
-      const [categoriesResult, booksResult, servicesResult] = await Promise.all([
-        supabase
-          .from("categories")
-          .select("id, name, slug, category_type, sort_order")
-          .eq("active", true)
-          .order("sort_order", { ascending: true })
-          .order("name", { ascending: true }),
-        supabase
-          .from("books")
-          .select(`
-            id,
-            title,
-            slug,
-            description,
-            price,
-            cover_path,
-            added_at,
-            ${catalogRelations}
-          `)
-          .eq("available", true)
-          .eq("subcategories.active", true)
-          .eq("subcategories.categories.active", true)
-          .order("added_at", { ascending: false }),
-        supabase
-          .from("services")
-          .select(`
-            id,
-            title,
-            slug,
-            description,
-            price,
-            cover_path,
-            document_path,
-            video_path,
-            video_url,
-            whatsapp_phone,
-            added_at,
-            ${catalogRelations}
-          `)
-          .eq("available", true)
-          .eq("subcategories.active", true)
-          .eq("subcategories.categories.active", true)
-          .order("added_at", { ascending: false }),
-      ]);
-
-      const failedResult = [categoriesResult, booksResult, servicesResult].find(
-        (result) => result.error,
-      );
-      if (failedResult?.error) {
-        throw new Error(failedResult.error.message);
-      }
-
-      const categories = (categoriesResult.data ?? []).map((category) => ({
-        ...category,
-        nom: category.name,
-      }));
-      const books = (booksResult.data ?? []).map((book) =>
-        mapCatalogItem(book, "livre"),
-      );
-      const services = (servicesResult.data ?? []).map((service) =>
-        mapCatalogItem(service, "service"),
-      );
-      const merged = [...books, ...services].sort(
-        (a, b) => new Date(b.date_ajout || 0) - new Date(a.date_ajout || 0),
-      );
+      const { categories, items } = await loadPublicCatalog();
 
       if (mounted) {
         setCategoryOptions(categories);
-        setLivres(merged);
+        setLivres(items);
       }
     };
 
@@ -153,12 +43,10 @@ export default function Catalog() {
         if (mounted) {
           const errorMessage =
             loadError instanceof Error ? loadError.message : String(loadError);
-          const isNetworkError =
-            loadError instanceof TypeError ||
-            /failed to fetch|networkerror|network request failed/i.test(errorMessage);
           setLivres([]);
           setErreur(
-            isNetworkError
+            loadError instanceof TypeError ||
+            /failed to fetch|networkerror|network request failed/i.test(errorMessage)
               ? "Connexion à Supabase impossible. Vérifiez l'URL du projet et votre connexion."
               : errorMessage
                 ? errorMessage

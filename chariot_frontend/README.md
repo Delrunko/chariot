@@ -49,7 +49,21 @@ Ne configurez pas `DEMO_PAYMENT_ENABLED=true` dans le projet Supabase distant.
 - `src/pages/ServiceDetail.jsx` — fiche service Supabase + création de commande
 - `src/pages/MyLibrary.jsx` — bibliothèque personnelle Supabase
 
-## À faire en itération suivante
+## Utilisation hors connexion
 
-- Passage en PWA (service worker) pour le cache chiffré hors-ligne réel
+Après une première ouverture avec Internet, l'application installe un service
+worker et prépare en arrière-plan un instantané du catalogue public, des
+catégories et des fiches. Ces données sont conservées sur cet appareil et
+restent accessibles après une coupure réseau ou l'actualisation d'une page.
+Les couvertures sont mises en cache lorsqu'elles sont affichées. Les données
+hors ligne correspondent à la dernière version chargée; les achats, paiements,
+formulaires et authentifications nécessitent toujours une connexion.
+
+Pour lire un document acheté hors connexion, ouvrez-le au moins une fois en
+étant connecté et autorisé. Le PDF est alors conservé dans le stockage local
+du navigateur, séparément pour chaque compte utilisateur. La bibliothèque
+personnelle est également enregistrée après son chargement en ligne. Le cache
+est propre à l'appareil et peut être supprimé par le navigateur ou l'utilisateur.
+
+## À faire en itération suivante
 - Intégration d'un fournisseur de paiement et confirmation par webhook signé
