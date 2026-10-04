@@ -184,6 +184,7 @@ export function AuthProvider({ children }) {
             full_name: fullName.trim(),
             phone_number: phone.trim(),
           },
+          emailRedirectTo: `${window.location.origin}/connexion`,
         },
       });
 
