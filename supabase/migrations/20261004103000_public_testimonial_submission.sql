@@ -1,7 +1,5 @@
--- Allow visitors to submit testimonials for moderation.
--- The table uses the live schema: name, message, rating, approved.
-begin;
-
+-- Permit anonymous visitors to submit testimonials for admin moderation.
+-- Only the live schema columns are granted; callers cannot approve submissions.
 alter table public.testimonials enable row level security;
 
 grant usage on schema public to anon, authenticated;
@@ -17,5 +15,3 @@ create policy "Public can submit testimonials"
     and rating between 1 and 5
     and approved = false
   );
-
-commit;
