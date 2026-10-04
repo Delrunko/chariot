@@ -368,20 +368,43 @@ export default function CategoryPage() {
     <div className="catalog-page category-page">
       <header className="catalog-header">
         <div className="catalog-header-copy">
-          <span className="eyebrow">Catalogue</span>
+          <span className="eyebrow">Nos services et ressources</span>
           <h1>{category?.nom || formatCategoryName(slug) || "Catégorie"}</h1>
-          <p>Tous les éléments disponibles pour {category?.nom || formatCategoryName(slug)}.</p>
+          <p>
+            Découvrez les prestations et ressources disponibles dans la catégorie{" "}
+            {category?.nom || formatCategoryName(slug)}.
+          </p>
+          {!loading && !loadError && (
+            <span className="category-header-count">
+              {displayed.length} élément{displayed.length === 1 ? "" : "s"} disponible
+              {displayed.length === 1 ? "" : "s"}
+            </span>
+          )}
         </div>
       </header>
 
-      {loading && <div className="catalog-state">Chargement…</div>}
+      {loading && (
+        <div className="catalog-grid category-skeleton-grid" role="status" aria-label="Chargement des éléments">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div className="category-card-skeleton" key={index} aria-hidden="true">
+              <div className="category-card-skeleton-image" />
+              <div className="category-card-skeleton-content">
+                <span className="category-card-skeleton-line category-card-skeleton-title" />
+                <span className="category-card-skeleton-line category-card-skeleton-description" />
+                <span className="category-card-skeleton-line category-card-skeleton-description-short" />
+                <span className="category-card-skeleton-button" />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       {!loading && loadError && (
         <div className="catalog-state catalog-empty" role="alert">
           La catégorie est temporairement indisponible : {loadError}
         </div>
       )}
       {!loading && !loadError && displayed.length === 0 && (
-        <div className="catalog-state catalog-empty">Aucun élément trouvé dans cette catégorie.</div>
+        <div className="catalog-state catalog-empty">Aucun élément dans cette catégorie.</div>
       )}
 
       {!loading && !loadError && displayed.length > 0 && (
@@ -397,9 +420,13 @@ export default function CategoryPage() {
                   <input type="checkbox" checked={selectedItems.hasOwnProperty(it.id)} onChange={() => toggleSelect(it.id, it)} />
                 </label>
                 {it.type_categorie === "service" ? (
-                  <ServiceCard livre={it} achete={servicesAchetesIds.has(String(it.id))} />
+                  <ServiceCard
+                    livre={it}
+                    achete={servicesAchetesIds.has(String(it.id))}
+                    categoryView
+                  />
                 ) : (
-                  <BookCard livre={it} />
+                  <BookCard livre={it} categoryView />
                 )}
               </div>
             </RevealOnScroll>

@@ -1,7 +1,7 @@
 ﻿import { Link, useNavigate } from "react-router-dom";
 import "./ServiceCard.css";
 
-export default function ServiceCard({ livre, achete }) {
+export default function ServiceCard({ livre, achete, categoryView = false }) {
   const navigate = useNavigate();
   const verrouille = !achete;
 
@@ -33,7 +33,7 @@ export default function ServiceCard({ livre, achete }) {
           }}
         >
           <i className="fa-solid fa-cart-shopping" aria-hidden="true" />
-          {achete ? "Voir" : "Acheter"}
+          {achete ? "Voir" : categoryView ? "Réserver" : "Acheter"}
         </button>
       </div>
     </Link>

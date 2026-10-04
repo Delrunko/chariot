@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import "./BookCard.css";
 
-export default function BookCard({ livre }) {
+export default function BookCard({ livre, categoryView = false }) {
   const verrouille = !livre.deja_achete;
 
   return (
@@ -20,6 +20,14 @@ export default function BookCard({ livre }) {
       <div className="book-card-info">
         <h3>{livre.titre}</h3>
         <p className="book-card-category">{livre.sous_categorie}</p>
+        {categoryView && livre.description && (
+          <p className="book-card-description">{livre.description}</p>
+        )}
+        {categoryView && (
+          <span className="book-card-cta">
+            {livre.deja_achete ? "Voir le livre" : "Acheter"}
+          </span>
+        )}
       </div>
     </Link>
   );
