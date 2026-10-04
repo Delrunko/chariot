@@ -62,6 +62,13 @@ function formatCategoryName(slug) {
     .join(" ");
 }
 
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 export default function CategoryPage() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
@@ -240,6 +247,7 @@ export default function CategoryPage() {
   const [submitting, setSubmitting] = useState(false);
   const [quoteResult, setQuoteResult] = useState(null);
   const displayed = useMemo(() => items, [items]);
+  const [minimumQuoteDate] = useState(() => formatLocalDate(new Date()));
 
   const toggleSelect = (id, item) => {
     setSelectedItems((prev) => {
@@ -263,7 +271,15 @@ export default function CategoryPage() {
   const makeWhatsAppUrl = (number, text) => buildWhatsAppLink(number, text);
 
   const handleSubmitQuote = async (e) => {
-    e && e.preventDefault();
+    e.preventDefault();
+    if (quoteForm.event_date && quoteForm.event_date < formatLocalDate(new Date())) {
+      setQuoteResult({
+        success: false,
+        error: "La date souhaitée doit être aujourd'hui ou une date future.",
+      });
+      return;
+    }
+
     setSubmitting(true);
     setQuoteResult(null);
 
@@ -284,30 +300,24 @@ export default function CategoryPage() {
 
       const totalPrix = selected.reduce((sum, s) => sum + ((s.prix || 0) * (s.quantite || 1)), 0);
 
-      const formData = new FormData();
-      formData.append('client_name', quoteForm.client_name || 'Anonyme');
-      formData.append('client_email', quoteForm.client_email || '');
-      formData.append('client_phone', quoteForm.client_phone || '');
-      formData.append('message', quoteForm.message || '');
-      formData.append('categorie', category && category.id ? String(category.id) : '');
-      formData.append('items', JSON.stringify(selected));
-      if (quoteForm.event_date) formData.append('event_date', quoteForm.event_date);
-      if (quoteForm.address) formData.append('address', quoteForm.address);
-      if (quoteForm.prix_estime) formData.append('prix_estime', String(quoteForm.prix_estime));
-
-      const fileInput = document.querySelector('input[name="quote_images"]');
-      if (fileInput && fileInput.files && fileInput.files.length) {
-        for (let i = 0; i < fileInput.files.length; i++) {
-          formData.append('images', fileInput.files[i]);
-        }
+      const selectedFiles = document.querySelector('input[name="quote_images"]')?.files;
+      if (selectedFiles?.length) {
+        throw new Error(
+          "L'envoi des photos n'est pas encore configuré pour les demandes de devis Supabase. Retirez les photos et réessayez.",
+        );
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (sessionData?.session?.user?.id) {
-        formData.append('user_id', sessionData.session.user.id);
-      }
-
-      const data = await createQuote(formData);
+      const data = await createQuote({
+        client_name: quoteForm.client_name.trim() || "Anonyme",
+        client_email: quoteForm.client_email.trim(),
+        client_phone: quoteForm.client_phone.trim(),
+        message: quoteForm.message.trim(),
+        category_id: category?.id || null,
+        items: selected,
+        event_date: quoteForm.event_date || null,
+        address: quoteForm.address.trim(),
+        estimated_price: quoteForm.prix_estime ? Number(quoteForm.prix_estime) : null,
+      });
 
       const pdfUrl = data && data.pdf_file ? data.pdf_file : null;
       const ref = data && data.id ? `DEVIS-${data.id}` : 'DEVIS-N/A';
@@ -331,8 +341,13 @@ export default function CategoryPage() {
       setSelectedItems({});
 
     } catch (err) {
-      const resp = err?.response;
-      const message = resp ? (resp.data ? JSON.stringify(resp.data) : `Erreur ${resp.status}`) : (err.message || 'Erreur lors de l\'envoi du devis');
+      console.error("Impossible d'enregistrer la demande de devis dans Supabase.", err);
+      const message = [
+        err?.message,
+        err?.code ? `Code ${err.code}` : "",
+        err?.details,
+        err?.hint,
+      ].filter(Boolean).join(" — ") || "Erreur lors de l'envoi du devis.";
       setQuoteResult({ success: false, error: message });
     } finally {
       setSubmitting(false);
@@ -414,7 +429,7 @@ export default function CategoryPage() {
                 </label>
                 <label>
                   Date souhaitée
-                  <input type="date" value={quoteForm.event_date} onChange={(e) => handleChange('event_date', e.target.value)} />
+                  <input type="date" min={minimumQuoteDate} value={quoteForm.event_date} onChange={(e) => handleChange('event_date', e.target.value)} />
                 </label>
                 <label>
                   Adresse / lieu
