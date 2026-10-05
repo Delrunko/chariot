@@ -21,6 +21,22 @@ supabase start
 supabase functions serve --env-file supabase\functions\.env
 ```
 
+### Inscription sans confirmation par email
+
+L'inscription crée une session immédiatement lorsque la confirmation email est
+désactivée pour le fournisseur Email du projet Supabase. Dans Supabase Studio,
+ouvrez **Authentication → Providers → Email** et désactivez **Confirm email**.
+Ce réglage appartient au projet Auth et ne peut pas être changé depuis le
+frontend sans exposer une clé privilégiée.
+
+Appliquez également les migrations Supabase depuis la racine du dépôt afin que
+le trigger crée correctement le profil à partir du nom et du téléphone fournis
+à l'inscription :
+
+```powershell
+supabase db push
+```
+
 Pour tester la simulation locale, définissez `DEMO_PAYMENT_ENABLED=true` dans
 `supabase\functions\.env` et `VITE_DEMO_PAYMENT_ENABLED=true` dans
 `chariot_frontend\.env.local`. La simulation est désactivée par défaut et ne doit
@@ -38,8 +54,8 @@ Ne configurez pas `DEMO_PAYMENT_ENABLED=true` dans le projet Supabase distant.
 
 ## Structure
 
-- `src/services/api.js` — appels API encore nécessaires à certaines fonctions historiques
-- `src/services/orderService.js` — création de commandes via Supabase Edge Functions
+- `src/lib/supabaseClient.js` — client Supabase utilisé par l'application
+- `src/services/orderService.js` — création de commandes dans Supabase
 - `src/context/AuthContext.jsx` — état de connexion global
 - `src/components/Navbar.jsx` — navigation alimentée par Supabase
 - `src/components/BookCard.jsx` — carte livre (verrouillée si non acheté = effet vitrine)

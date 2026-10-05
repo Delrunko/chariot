@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import PasswordField from "../components/PasswordField";
 import "./AuthForm.css";
@@ -8,7 +8,9 @@ export default function Register() {
   const [form, setForm] = useState({ fullName: "", email: "", phone: "", password: "" });
   const [erreur, setErreur] = useState("");
   const [success, setSuccess] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { signUp } = useAuth();
+  const navigate = useNavigate();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -16,18 +18,26 @@ export default function Register() {
     e.preventDefault();
     setErreur("");
     setSuccess("");
+    setIsSubmitting(true);
 
-    const result = await signUp(form.email, form.password, form.fullName, form.phone);
-    if (!result.success) {
-      setErreur(result.error);
-      return;
+    try {
+      const result = await signUp(form.email, form.password, form.fullName, form.phone);
+      if (!result.success) {
+        setErreur(result.error);
+        return;
+      }
+
+      if (result.needsEmailConfirmation) {
+        setSuccess(
+          "Le compte est créé, mais la confirmation email est encore activée dans Supabase. Pour une inscription directe, désactivez « Confirm email » dans Authentication > Providers > Email.",
+        );
+        return;
+      }
+
+      navigate("/ma-bibliotheque", { replace: true });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSuccess(
-      result.needsEmailConfirmation
-        ? "Vérifiez votre email pour confirmer la création de votre compte."
-        : "Votre compte a été créé avec succès.",
-    );
   };
 
   return (
@@ -46,7 +56,9 @@ export default function Register() {
         autoComplete="new-password"
         required
       />
-      <button type="submit" className="btn-primary">S'inscrire</button>
+      <button type="submit" className="btn-primary" disabled={isSubmitting}>
+        {isSubmitting ? "Création du compte…" : "S'inscrire"}
+      </button>
       <p>Déjà un compte ? <Link to="/connexion">Se connecter</Link></p>
     </form>
   );

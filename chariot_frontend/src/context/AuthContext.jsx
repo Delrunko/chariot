@@ -53,6 +53,9 @@ function getFrenchAuthError(error) {
   if (message.includes("user already registered")) {
     return "Un compte existe déjà avec cette adresse email.";
   }
+  if (message.includes("database error saving new user")) {
+    return "Supabase n'a pas pu créer le profil associé au compte. Appliquez la dernière migration Supabase puis réessayez.";
+  }
   if (message.includes("password") && message.includes("least")) {
     return "Le mot de passe ne respecte pas les exigences minimales.";
   }
@@ -178,38 +181,62 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const signUp = async (email, password, fullName, phone) => {
-    setError(null);
-    try {
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email: email.trim(),
-        password,
-        options: {
-          data: {
-            full_name: fullName.trim(),
-            phone: phone.trim(),
-          },
-          emailRedirectTo: `${window.location.origin}/connexion`,
-        },
-      });
+  const acceptAuthenticatedProfile = useCallback((authenticatedSession, profile) => {
+    const authenticatedUser = authenticatedSession?.user;
+    if (!authenticatedUser || !profile) {
+      throw new Error("Session ou profil utilisateur manquant.");
+    }
 
-      if (signUpError) {
+    const nextUser = mapAuthUser(authenticatedUser, profile);
+    setSession(authenticatedSession);
+    setUser(nextUser);
+    setIsAdmin(nextUser.role === "admin");
+    setError(null);
+    setLoading(false);
+  }, []);
+
+  const signUp = useCallback(
+    async (email, password, fullName, phone) => {
+      setError(null);
+      try {
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+              phone: phone.trim(),
+            },
+          },
+        });
+
+        if (signUpError) {
+          const message = getFrenchAuthError(signUpError);
+          setError(message);
+          return { success: false, error: message };
+        }
+
+        if (data.session && data.user) {
+          const profile = await getProfile(data.user.id);
+          if (!profile) {
+            throw new Error("Le compte a été créé, mais son profil est introuvable.");
+          }
+          acceptAuthenticatedProfile(data.session, profile);
+        }
+
+        return {
+          success: true,
+          error: null,
+          needsEmailConfirmation: !data.session,
+        };
+      } catch (signUpError) {
         const message = getFrenchAuthError(signUpError);
         setError(message);
         return { success: false, error: message };
       }
-
-      return {
-        success: true,
-        error: null,
-        needsEmailConfirmation: !data.session,
-      };
-    } catch (signUpError) {
-      const message = getFrenchAuthError(signUpError);
-      setError(message);
-      return { success: false, error: message };
-    }
-  };
+    },
+    [acceptAuthenticatedProfile],
+  );
 
   const signOut = async () => {
     try {
@@ -228,20 +255,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const acceptAuthenticatedProfile = useCallback((authenticatedSession, profile) => {
-    const authenticatedUser = authenticatedSession?.user;
-    if (!authenticatedUser || !profile) {
-      throw new Error("Session ou profil utilisateur manquant.");
-    }
-
-    const nextUser = mapAuthUser(authenticatedUser, profile);
-    setSession(authenticatedSession);
-    setUser(nextUser);
-    setIsAdmin(nextUser.role === "admin");
-    setError(null);
-    setLoading(false);
-  }, []);
-
   const value = useMemo(
     () => ({
       user,
@@ -254,7 +267,7 @@ export function AuthProvider({ children }) {
       signOut,
       acceptAuthenticatedProfile,
     }),
-    [user, session, loading, error, isAdmin, acceptAuthenticatedProfile],
+    [user, session, loading, error, isAdmin, signUp, acceptAuthenticatedProfile],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
