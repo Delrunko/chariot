@@ -268,7 +268,10 @@ export default function CategoryPage() {
   };
 
   const handleQtyChange = (id, qty) => {
-    setSelectedItems((prev) => ({ ...prev, [id]: { ...(prev[id] || {}), quantite: Math.max(0, Number(qty) || 0) } }));
+    setSelectedItems((prev) => ({
+      ...prev,
+      [id]: { ...(prev[id] || {}), quantite: Math.max(1, Number(qty) || 1) },
+    }));
   };
 
   const WHATSAPP_NUMBER = '+237656877046';
@@ -404,12 +407,14 @@ export default function CategoryPage() {
         </div>
       )}
       {!loading && loadError && (
-        <div className="catalog-state catalog-empty" role="alert">
+        <div className="catalog-state catalog-empty category-state" role="alert">
           La catégorie est temporairement indisponible : {loadError}
         </div>
       )}
       {!loading && !loadError && displayed.length === 0 && (
-        <div className="catalog-state catalog-empty">Aucun élément dans cette catégorie.</div>
+        <div className="catalog-state catalog-empty category-state">
+          Aucun élément dans cette catégorie.
+        </div>
       )}
 
       {!loading && !loadError && displayed.length > 0 && (
@@ -444,10 +449,12 @@ export default function CategoryPage() {
         const normalized = name.normalize ? name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : name.toLowerCase();
         const isHotellerie = category.slug === 'hotellerie' || category.slug === '1er-cycle' || normalized.includes('hotellerie') || normalized.includes('hotel');
         return isHotellerie ? (
-          <section className="catalog-quote-panel">
-            <h2>Demande de devis</h2>
-            <p>Remplissez ce formulaire pour envoyer votre demande à l'administrateur. Vous pouvez sélectionner un ou plusieurs éléments ci-dessous et ajouter des détails.</p>
-            <div>
+          <section className="catalog-quote-panel category-quote-panel">
+            <div className="category-quote-heading">
+              <h2>Demande de devis</h2>
+              <p>Remplissez ce formulaire pour envoyer votre demande à l'administrateur. Vous pouvez sélectionner un ou plusieurs éléments ci-dessous et ajouter des détails.</p>
+            </div>
+            <div className="category-quote-form-area">
               <form onSubmit={handleSubmitQuote} className="quote-form">
                 <label>
                   Nom
@@ -494,9 +501,9 @@ export default function CategoryPage() {
                     <span> <a href={quoteResult.data.pdf_file} target="_blank" rel="noreferrer">Télécharger le PDF</a></span>
                   )}
                   {quoteResult.waUrl && (
-                    <div style={{marginTop:8, display:'flex', gap:8, alignItems:'center'}}>
+                    <div className="category-quote-result-actions">
                       <a href={quoteResult.waUrl} target="_blank" rel="noreferrer" className="btn-primary">Ouvrir WhatsApp</a>
-                      <input readOnly value={quoteResult.waUrl} style={{flex:1, padding:'0.5rem', borderRadius:8, border:'1px solid var(--line)'}} />
+                      <input readOnly value={quoteResult.waUrl} aria-label="Lien WhatsApp du devis" />
                       <button type="button" className="btn-outline" onClick={async () => { try { await navigator.clipboard.writeText(quoteResult.waUrl); alert('Lien WhatsApp copié'); } catch (e) { alert('Impossible de copier'); } }}>Copier le lien</button>
                     </div>
                   )}
@@ -507,24 +514,39 @@ export default function CategoryPage() {
               )}
             </div>
 
-            <aside className="selected-summary">
+            <aside className="selected-summary category-selected-summary">
               <h3>Sélection</h3>
               {Object.keys(selectedItems).length === 0 ? (
                 <div className="empty">Aucun élément sélectionné.</div>
               ) : (
                 <ul>
                   {displayed.filter((it) => selectedItems.hasOwnProperty(it.id)).map((it) => (
-                    <li key={it.id} style={{display:'flex', alignItems:'center', gap:8}}>
-                      <div className="thumb" style={{width:64, height:64}}>
-                        {it.couverture ? <img src={it.couverture} alt={it.titre} style={{width:'100%', height:'100%', objectFit:'cover'}} /> : <div style={{width:'100%',height:'100%',background:'#eee'}} />}
+                    <li key={it.id} className="category-selected-item">
+                      <div className="thumb">
+                        {it.couverture ? (
+                          <img src={it.couverture} alt="" />
+                        ) : (
+                          <div className="category-selected-thumb-empty" />
+                        )}
                       </div>
-                      <div className="title">{it.titre}</div>
-                      <div style={{display:'flex', alignItems:'center', gap:8}}>
-                        <label style={{display:'flex', alignItems:'center', gap:6}}>
+                      <div className="title category-selected-item-title">{it.titre}</div>
+                      <div className="category-selected-controls">
+                        <label>
                           Qté
-                          <input type="number" value={selectedItems[it.id]?.quantite || 1} min={0} style={{width:64}} onChange={(e) => handleQtyChange(it.id, e.target.value)} />
+                          <input
+                            type="number"
+                            value={selectedItems[it.id]?.quantite || 1}
+                            min={1}
+                            onChange={(e) => handleQtyChange(it.id, e.target.value)}
+                          />
                         </label>
-                        <button type="button" className="btn-outline" onClick={() => toggleSelect(it.id, it)} style={{marginLeft:8}}>Retirer</button>
+                        <button
+                          type="button"
+                          className="btn-outline"
+                          onClick={() => toggleSelect(it.id, it)}
+                        >
+                          Retirer
+                        </button>
                       </div>
                     </li>
                   ))}

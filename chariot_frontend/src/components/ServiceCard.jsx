@@ -1,8 +1,7 @@
-﻿import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import "./ServiceCard.css";
 
 export default function ServiceCard({ livre, achete, categoryView = false }) {
-  const navigate = useNavigate();
   const verrouille = !achete;
 
   return (
@@ -24,17 +23,10 @@ export default function ServiceCard({ livre, achete, categoryView = false }) {
         {livre.description && (
           <p className="service-card-description">{livre.description}</p>
         )}
-        <button
-          type="button"
-          className="service-card-cta"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate(`/service/${livre.slug}`);
-          }}
-        >
+        <span className="service-card-cta">
           <i className="fa-solid fa-cart-shopping" aria-hidden="true" />
           {achete ? "Voir" : categoryView ? "Réserver" : "Acheter"}
-        </button>
+        </span>
       </div>
     </Link>
   );
