@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { supabase } from "../lib/supabaseClient";
+import { ensureProfileExists } from "../services/profileService";
 import "./AuthForm.css";
 import "./MyProfile.css";
 
@@ -32,12 +33,7 @@ export default function MyProfile() {
       setLoading(true);
       setError("");
       try {
-        const { data, error: profileError } = await supabase
-          .from("profiles")
-          .select("id, username, first_name, last_name, telephone, role")
-          .eq("id", user.id)
-          .single();
-        if (profileError) throw profileError;
+        const data = await ensureProfileExists(user);
         if (active) {
           setForm({
             full_name: profileFullName(data) || user.full_name || "",
@@ -48,9 +44,9 @@ export default function MyProfile() {
         console.error("Impossible de charger le profil utilisateur.", profileError);
         if (active) {
           setError(
-            profileError instanceof Error
-              ? profileError.message
-              : "Impossible de charger votre profil.",
+            `Impossible de charger votre profil : ${
+              profileError?.message || "erreur Supabase inconnue"
+            }`,
           );
         }
       } finally {
@@ -62,7 +58,7 @@ export default function MyProfile() {
     return () => {
       active = false;
     };
-  }, [user.id, user.full_name, user.telephone]);
+  }, [user]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();

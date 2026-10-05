@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { ensureProfileExists } from "../services/profileService";
 
 const AuthContext = createContext(null);
 
@@ -28,17 +29,6 @@ function mapAuthUser(authUser, profile) {
       "",
     role: profile?.role === "admin" ? "admin" : "client",
   };
-}
-
-async function getProfile(userId) {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, username, first_name, last_name, telephone, role")
-    .eq("id", userId)
-    .maybeSingle();
-
-  if (error) throw error;
-  return data;
 }
 
 function getFrenchAuthError(error) {
@@ -95,7 +85,7 @@ export function AuthProvider({ children }) {
       let profile = null;
       let profileError = null;
       try {
-        profile = await getProfile(nextSession.user.id);
+        profile = await ensureProfileExists(nextSession.user);
       } catch (fetchError) {
         profileError = fetchError;
       }
@@ -163,7 +153,7 @@ export function AuthProvider({ children }) {
         return { success: false, error: message };
       }
 
-      const profile = await getProfile(data.user.id).catch((profileError) => {
+      const profile = await ensureProfileExists(data.user).catch((profileError) => {
         setError(getFrenchAuthError(profileError));
         return null;
       });
@@ -217,10 +207,7 @@ export function AuthProvider({ children }) {
         }
 
         if (data.session && data.user) {
-          const profile = await getProfile(data.user.id);
-          if (!profile) {
-            throw new Error("Le compte a été créé, mais son profil est introuvable.");
-          }
+          const profile = await ensureProfileExists(data.user);
           acceptAuthenticatedProfile(data.session, profile);
         }
 

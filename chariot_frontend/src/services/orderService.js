@@ -1,40 +1,7 @@
 import { supabase } from "../lib/supabaseClient";
+import { ensureProfileExists } from "./profileService";
 
 const DEMO_PAYMENT_ENABLED = import.meta.env.VITE_DEMO_PAYMENT_ENABLED === "true";
-
-async function ensureProfileExists(user) {
-  if (!user?.id) return;
-
-  const { data: existingProfile, error: profileFetchError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (profileFetchError && profileFetchError.code !== "PGRST116") {
-    throw profileFetchError;
-  }
-  if (existingProfile) return;
-
-  const metadata = user.user_metadata ?? {};
-  const fullName = metadata.full_name || "";
-  const nameParts = fullName.split(/\s+/).filter(Boolean);
-  const firstName = metadata.first_name || nameParts[0] || "";
-  const lastName = metadata.last_name || nameParts.slice(1).join(" ") || "";
-
-  const { error: profileInsertError } = await supabase.from("profiles").insert({
-    id: user.id,
-    username: metadata.username || metadata.preferred_username || null,
-    first_name: firstName,
-    last_name: lastName,
-    telephone: metadata.phone || metadata.phone_number || metadata.telephone || null,
-    role: "client",
-  });
-
-  if (profileInsertError && profileInsertError.code !== "23505") {
-    throw profileInsertError;
-  }
-}
 
 export async function createOrder({ bookId, serviceId, paymentMethod }) {
   if (Boolean(bookId) === Boolean(serviceId)) {

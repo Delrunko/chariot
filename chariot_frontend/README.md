@@ -29,9 +29,10 @@ ouvrez **Authentication → Providers → Email** et désactivez **Confirm email
 Ce réglage appartient au projet Auth et ne peut pas être changé depuis le
 frontend sans exposer une clé privilégiée.
 
-Appliquez également les migrations Supabase depuis la racine du dépôt afin que
-le trigger crée correctement le profil à partir du nom et du téléphone fournis
-à l'inscription :
+Appliquez également les migrations Supabase depuis la racine du dépôt : elles
+réparent le trigger d'inscription et permettent à un utilisateur connecté de
+recréer uniquement son propre profil si celui-ci est absent. Le rôle admin n'est
+jamais modifiable par cette procédure.
 
 ```powershell
 supabase db push
