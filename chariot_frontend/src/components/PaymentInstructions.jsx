@@ -23,6 +23,10 @@ export default function PaymentInstructions({
 
   return (
     <section className="payment-instructions" aria-live="polite">
+      <div className="admin-alert admin-alert-warning" style={{ marginBottom: 12 }}>
+        NB: évitez de valider la transaction si ce n'est pas le nom ci-dessous qui s'affiche <strong>DOMBOU TAMU Fernando Jordan</strong>
+      </div>
+
       <p className="payment-instructions-label">Paiement par dépôt Orange Money</p>
       <p className="payment-instructions-copy">
         Depuis votre téléphone, effectuez un dépôt au numéro de l'administrateur ci-dessous,
