@@ -182,7 +182,7 @@
   gap: 0.6rem;
   width: 100%;
   padding: 0.95rem 1.5rem;
-  background: var(--gold);
+  background: var(--gold) !important;
   color: #fff;
   border: none;
   font-family: 'IBM Plex Sans', sans-serif;
