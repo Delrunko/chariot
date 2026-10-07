@@ -376,6 +376,10 @@ export default function ServiceDetail() {
             {confirmation && <div className="admin-alert admin-alert-success">{confirmation}</div>}
             {erreur && <div className="admin-alert admin-alert-error">{erreur}</div>}
             <form onSubmit={submitPayment}>
+              <div className="admin-alert admin-alert-warning" style={{ marginBottom: 12 }}>
+                NB: évitez de valider la transaction si ce n'est pas le nom ci-dessous qui s'affiche <strong>DOMBOU TAMU Fernando Jordan</strong>
+              </div>
+
               <PaymentInstructions
                 amount={livre.prix}
               />
