@@ -33,7 +33,7 @@ export default function PaymentInstructions({
         du montant exact de votre commande. Votre accès sera activé après vérification du paiement.
       </p>
       <div className="payment-instructions-number-row">
-        <label htmlFor="payment-deposit-number">Numéro Orange Money de l'administrateur</label>
+        <label htmlFor="payment-deposit-number">DOMBOU TAMU Fernando Jordan</label>
         <div className="payment-instructions-number">
           <input
             id="payment-deposit-number"
