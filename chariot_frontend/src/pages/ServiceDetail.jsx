@@ -308,7 +308,7 @@ export default function ServiceDetail() {
           </button>
         ) : (
           <button className="btn-primary" onClick={acheter}>
-            Acheter via Orange Money
+            Acheter 
           </button>
         )}
 
