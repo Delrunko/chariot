@@ -121,8 +121,8 @@ function mapOrder(order) {
     date_achat: order.purchased_at,
     moyen_paiement: order.payment_method,
     reference_transaction: order.transaction_reference,
-    utilisateur_username: profile?.username || personName || "Utilisateur",
-    utilisateur__username: profile?.username || personName || "Utilisateur",
+    utilisateur_nom: personName || profile?.username || "Utilisateur",
+    utilisateur_telephone: profile?.telephone || "",
     livre_titre: book?.title || service?.title || "—",
     livre__titre: book?.title || service?.title || "—",
     produit_type: book ? "Livre" : "Service",
@@ -245,7 +245,7 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
         supabase.from("profiles").select("id, username, first_name, last_name, telephone, role, created_at").order("created_at", { ascending: false }),
         supabase.from("orders").select(`
           id, user_id, book_id, service_id, status, payment_method, transaction_reference,
-          amount, purchased_at, paid_at, profile:profiles(username, first_name, last_name),
+          amount, purchased_at, paid_at, profile:profiles(username, first_name, last_name, telephone),
           book:books(title), service:services(title)
         `).order("purchased_at", { ascending: false }),
         supabase.from("categories").select("*", { count: "exact", head: true }),
@@ -1279,7 +1279,8 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                         ) : (
                           recentAchats.slice(0, 8).map((achat) => (
                             <li key={achat.id}>
-                              <span>{achat.utilisateur__username} — {achat.livre__titre}</span>
+                              <span>{achat.utilisateur_nom} — {achat.livre__titre}</span>
+                              <small>{achat.utilisateur_telephone || "Téléphone non renseigné"}</small>
                               <strong>{achat.statut}</strong>
                             </li>
                           ))
@@ -1296,8 +1297,8 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                           purchases.filter(p => p.statut === 'en_attente').map((achat) => (
                             <li key={achat.id} className="admin-purchase-row" onClick={() => openPurchaseModal(achat)} style={{cursor:'pointer'}}>
                               <div className="admin-purchase-meta">
-                                <span>{achat.utilisateur_username || "Utilisateur"} — {achat.livre_titre}</span>
-                                <small>{achat.montant} FCFA • {achat.moyen_paiement}</small>
+                                <span>{achat.utilisateur_nom || "Utilisateur"} — {achat.livre_titre}</span>
+                                <small>{achat.utilisateur_telephone || "Téléphone non renseigné"} • {achat.montant} FCFA • {achat.moyen_paiement}</small>
                               </div>
                               <div className="admin-purchase-actions">
                                 <strong style={{textTransform:'uppercase', color:'#d97706'}}>{achat.statut}</strong>
@@ -1939,7 +1940,7 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                         purchases.filter(p => p.statut === 'en_attente').map((achat) => (
                           <li key={achat.id} className="admin-purchase-row" onClick={() => openPurchaseModal(achat)} style={{cursor:'pointer'}}>
                             <div className="admin-purchase-meta">
-                              <span>{achat.utilisateur_username || "Utilisateur"} — {achat.livre_titre}</span>
+                              <span>{achat.utilisateur_nom || "Utilisateur"} — {achat.livre_titre}</span>
                               <small>{achat.montant} FCFA • {achat.moyen_paiement}</small>
                             </div>
                             <div className="admin-purchase-actions">
@@ -1957,8 +1958,8 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                       {purchases.slice(0, 12).map((achat) => (
                         <li key={achat.id} className="admin-purchase-row" onClick={() => openPurchaseModal(achat)} style={{cursor:'pointer'}}>
                           <div className="admin-purchase-meta">
-                            <span>{achat.utilisateur_username || "Utilisateur"} — {achat.livre_titre}</span>
-                            <small>{achat.montant} FCFA • {achat.moyen_paiement}</small>
+                            <span>{achat.utilisateur_nom || "Utilisateur"} — {achat.livre_titre}</span>
+                            <small>{achat.utilisateur_telephone || "Téléphone non renseigné"} • {achat.montant} FCFA • {achat.moyen_paiement}</small>
                           </div>
                           <div className="admin-purchase-actions">
                             <strong style={{textTransform:'uppercase'}}>{achat.statut}</strong>
@@ -2345,8 +2346,13 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                   <div className="admin-modal" onKeyDown={handleModalKeyDown} role="dialog" aria-modal="true">
                     <h3>Détails de l'achat</h3>
                     <div style={{marginBottom:8}}>
-                      <strong>Client :</strong> {activePurchase.utilisateur_username || activePurchase.utilisateur || 'Utilisateur'}
+                      <strong>Client :</strong> {activePurchase.utilisateur_nom || activePurchase.utilisateur || 'Utilisateur'}
                     </div>
+                    {activePurchase.utilisateur_telephone && (
+                      <div style={{marginBottom:8}}>
+                        <strong>Téléphone： </strong> {activePurchase.utilisateur_telephone}
+                      </div>
+                    )}
                     <div style={{marginBottom:8}}>
                       <strong>Livre :</strong> {activePurchase.livre_titre}
                     </div>
