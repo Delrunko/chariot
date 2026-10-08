@@ -195,7 +195,7 @@ export default function BookDetail() {
           ) : (
             <button className="btn-primary" onClick={acheter} disabled={achatEnCours}>
               <i className="fas fa-mobile-alt"></i> 
-              {achatEnCours ? "Paiement en cours…" : "Acheter via Orange Money"}
+              {achatEnCours ? "Paiement en cours…" : "Acheter"}
             </button>
           )}
         </div>
