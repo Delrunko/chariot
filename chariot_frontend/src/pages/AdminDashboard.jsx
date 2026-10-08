@@ -1039,37 +1039,44 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
 
   const handleApprovePurchase = async (id) => {
     try {
-      const { data, error } = await supabase.rpc("admin_update_order", {
-        requested_order_id: id,
-        requested_status: "paye",
-        requested_reference: purchaseAdminForm.reference_transaction || null,
-      });
+      const { error } = await supabase
+        .from("orders")
+        .update({ 
+          status: "paye", 
+          transaction_reference: purchaseAdminForm.reference_transaction || null,
+          paid_at: new Date().toISOString()
+        })
+        .eq("id", id);
+        
       if (error) throw error;
-      if (!data) throw new Error("Cette commande a déjà été traitée.");
+      
       setMessage('Achat approuvé.');
       setShowPurchaseModal(false);
       await loadAdminData();
     } catch (err) {
-      console.error("Échec de l'approbation de la commande.", err);
-      setError(err instanceof Error ? err.message : "Échec lors de l'approbation.");
+      console.error("Échec approbation:", err);
+      setError(err.message || "Erreur lors de l'approbation.");
     }
   };
 
   const handleRejectPurchase = async (id) => {
     try {
-      const { data, error } = await supabase.rpc("admin_update_order", {
-        requested_order_id: id,
-        requested_status: "echoue",
-        requested_reference: null,
-      });
+      const { error } = await supabase
+        .from("orders")
+        .update({ 
+          status: "echoue",
+          transaction_reference: null
+        })
+        .eq("id", id);
+        
       if (error) throw error;
-      if (!data) throw new Error("Cette commande a déjà été traitée.");
+      
       setMessage('Achat marqué comme échoué.');
       setShowPurchaseModal(false);
       await loadAdminData();
     } catch (err) {
-      console.error("Échec du rejet de la commande.", err);
-      setError(err instanceof Error ? err.message : "Échec lors du rejet.");
+      console.error("Échec rejet:", err);
+      setError(err.message || "Erreur lors du rejet.");
     }
   };
 
@@ -2350,7 +2357,7 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                     </div>
                     {activePurchase.utilisateur_telephone && (
                       <div style={{marginBottom:8}}>
-                        <strong>Téléphone： </strong> {activePurchase.utilisateur_telephone}
+                        <strong>Téléphone：</strong> {activePurchase.utilisateur_telephone}
                       </div>
                     )}
                     <div style={{marginBottom:8}}>
