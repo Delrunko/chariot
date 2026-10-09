@@ -29,20 +29,49 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Sert index.html pour TOUTE requête de navigation (SPA offline complet)
         navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2,webmanifest}'],
-        runtimeCaching: [{
-          urlPattern: 'https://klqlajdyxjdqjfjftods.supabase.co/storage/v1/object/public/covers/.*',
-          handler: 'StaleWhileRevalidate',
-          options: {
-            cacheName: 'eds-covers-cache',
-            cacheableResponse: { statuses: [200] },
+
+        // Liste NOIRE minimale : uniquement ce qui ne doit JAMAIS être fallbacké
+        // (API distante + assets binaires lourds). Tout le reste = autorisé offline.
+        navigateFallbackDenylist: [
+          /^https?:\/\/[^/]*supabase\.co/,   // jamais intercepter l'API Supabase
+          /^\/api\//,                         // routes backend locales éventuelles
+          /\.(pdf|docx|xlsx|zip|mp4|webm)$/i  // gros fichiers binaires
+        ],
+
+        // Pré-cache de tous les assets de boot
+        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff2}'],
+
+        // Stratégies runtime : NetworkFirst pour HTML/routes, CacheFirst pour statiques
+        runtimeCaching: [
+          {
+            urlPattern: ({ request }) => request.mode === 'navigate',
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'pages-cache',
+              networkTimeoutSeconds: 5,
+              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 }
+            }
           },
-        }],
-      },
-      devOptions: {
-        enabled: true,
-      },
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\.(png|jpe?g|gif|svg|webp)$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 }
+            }
+          },
+          {
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\.(js|css|woff2?)$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'assets-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 }
+            }
+          }
+        ]
+      }
     }),
   ],
 })
