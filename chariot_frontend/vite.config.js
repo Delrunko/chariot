@@ -29,21 +29,13 @@ export default defineConfig({
         ],
       },
       workbox: {
-        // Sert index.html pour TOUTE requête de navigation (SPA offline complet)
         navigateFallback: '/index.html',
-
-        // Liste NOIRE minimale : uniquement ce qui ne doit JAMAIS être fallbacké
-        // (API distante + assets binaires lourds). Tout le reste = autorisé offline.
         navigateFallbackDenylist: [
-          /^https?:\/\/[^/]*supabase\.co/,   // jamais intercepter l'API Supabase
-          /^\/api\//,                         // routes backend locales éventuelles
-          /\.(pdf|docx|xlsx|zip|mp4|webm)$/i  // gros fichiers binaires
+          /^https?:\/\/[^/]*supabase\.co/,
+          /^\/api\//,
+          /\.(pdf|docx|xlsx|zip|mp4|webm)$/i
         ],
-
-        // Pré-cache de tous les assets de boot
         globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff2}'],
-
-        // Stratégies runtime : NetworkFirst pour HTML/routes, CacheFirst pour statiques
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
@@ -71,7 +63,10 @@ export default defineConfig({
             }
           }
         ]
-      }
+      },
+      devOptions: {
+        enabled: false,
+      },
     }),
   ],
 })
