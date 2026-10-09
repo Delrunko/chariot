@@ -31,7 +31,17 @@ function mapAuthUser(authUser, profile) {
   };
 }
 
+function isNetworkFailure(error) {
+  if (!error) return false;
+  if (error instanceof TypeError) return true;
+  const message = (error?.message || "").toLowerCase();
+  return /fetch|network|failed|timeout|unreachable|offline|connection/i.test(message);
+}
+
 function getFrenchAuthError(error) {
+  if (isNetworkFailure(error)) {
+    return "Connexion au service d'authentification impossible. Vérifiez votre connexion.";
+  }
   const message = error?.message?.toLowerCase() ?? "";
 
   if (message.includes("invalid login credentials")) {
@@ -48,9 +58,6 @@ function getFrenchAuthError(error) {
   }
   if (message.includes("password") && message.includes("least")) {
     return "Le mot de passe ne respecte pas les exigences minimales.";
-  }
-  if (message.includes("fetch") || message.includes("network")) {
-    return "Connexion au service d'authentification impossible. Vérifiez votre connexion.";
   }
 
   return error?.message || "Une erreur d'authentification est survenue.";
@@ -121,11 +128,26 @@ export function AuthProvider({ children }) {
       .getSession()
       .then(({ data, error: sessionError }) => {
         if (!active) return;
-        if (sessionError) throw sessionError;
+        if (sessionError && !isNetworkFailure(sessionError)) {
+          setError(getFrenchAuthError(sessionError));
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
         return syncSession(data.session);
       })
       .catch((sessionError) => {
         if (!active) return;
+        // Hors ligne ou échec réseau : ne pas bloquer l'application
+        if (isNetworkFailure(sessionError)) {
+          setUser(null);
+          setSession(null);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        }
         setError(getFrenchAuthError(sessionError));
         setUser(null);
         setSession(null);
