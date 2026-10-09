@@ -1,57 +1,48 @@
-import { readdir, readFile, writeFile } from 'node:fs/promises'
-import { resolve, relative, sep } from 'node:path'
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-
-function offlinePrecachePlugin() {
-  let root
-  let outDir
-  let base
-  let supabaseOrigin
-
-  return {
-    name: 'offline-precache-manifest',
-    apply: 'build',
-    configResolved(config) {
-      root = config.root
-      outDir = resolve(root, config.build.outDir)
-      base = config.base
-      const supabaseUrl = loadEnv(config.mode, root, 'VITE_').VITE_SUPABASE_URL
-      supabaseOrigin = supabaseUrl ? new URL(supabaseUrl).origin : ''
-    },
-    async closeBundle() {
-      const files = []
-      const collectFiles = async (directory) => {
-        for (const entry of await readdir(directory, { withFileTypes: true })) {
-          const path = resolve(directory, entry.name)
-          if (entry.isDirectory()) {
-            await collectFiles(path)
-          } else {
-            const name = relative(outDir, path).split(sep).join('/')
-            if (
-              name !== 'service-worker.js'
-              && /\.(html|js|mjs|css|svg|png|jpe?g|webp|woff2?|webmanifest)$/i.test(name)
-            ) {
-              files.push(`${base}${name}`)
-            }
-          }
-        }
-      }
-
-      await collectFiles(outDir)
-      const workerPath = resolve(outDir, 'service-worker.js')
-      const workerSource = await readFile(workerPath, 'utf8')
-      await writeFile(
-        workerPath,
-        workerSource
-          .replace('__PRECACHE_URLS__', JSON.stringify(files))
-          .replace('__SUPABASE_ORIGIN__', JSON.stringify(supabaseOrigin)),
-      )
-    },
-  }
-}
+import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), offlinePrecachePlugin()],
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeManifest: true,
+      manifest: {
+        name: 'EDS — Librairie technique en ligne',
+        short_name: 'EDS',
+        description: 'Outils pédagogiques pour apprendre et réviser, même hors connexion.',
+        lang: 'fr',
+        start_url: '/',
+        scope: '/',
+        display: 'standalone',
+        background_color: '#f6f1e4',
+        theme_color: '#171717',
+        icons: [
+          {
+            src: '/logo.png',
+            sizes: 'any',
+            type: 'image/png',
+            purpose: 'any',
+          },
+        ],
+      },
+      workbox: {
+        navigateFallback: '/index.html',
+        globPatterns: ['**/*.{js,css,html,png,jpg,svg,woff2,webmanifest}'],
+        runtimeCaching: [{
+          urlPattern: 'https://klqlajdyxjdqjfjftods.supabase.co/storage/v1/object/public/covers/.*',
+          handler: 'StaleWhileRevalidate',
+          options: {
+            cacheName: 'eds-covers-cache',
+            cacheableResponse: { statuses: [200] },
+          },
+        }],
+      },
+      devOptions: {
+        enabled: true,
+      },
+    }),
+  ],
 })
