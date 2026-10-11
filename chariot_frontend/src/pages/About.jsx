@@ -10,8 +10,7 @@ export default function About() {
           Ets DOMBOU SERVICES EXPRESS d'un constat simple : les élèves et étudiants en
           filière Maçonnerie &amp; Bâtiment n'ont pas toujours un accès facile
           à leurs manuels de référence. Nous rendons ces ouvrages disponibles
-          en ligne, achetables en quelques instants, et consultables même
-          sans connexion internet.
+          en ligne, achetables en quelques instants, et peu importe ou vous êtes.
         </p>
       </section>
 
@@ -27,18 +26,17 @@ export default function About() {
         </div>
         <div className="about-value">
           <span className="about-value-mark">02</span>
-          <h3>Un accès qui suit l'élève, pas la connexion</h3>
+          <h3>Un accès qui suit l'élève</h3>
           <p>
-            Une fois un livre acheté, il reste consultable même hors ligne —
-            pensé pour les réalités de connexion du terrain, pas seulement
-            pour un usage en ville.
+            Une fois un livre acheté, il reste consultable 
+            et disponible quand vous voulez et comme vous voulez. Dans le but de vous permettre une bonne maîtrise dans le domaine.
           </p>
         </div>
         <div className="about-value">
           <span className="about-value-mark">03</span>
           <h3>Un paiement simple, à la portée de tous</h3>
           <p>
-            L'achat se fait directement via Orange Money, sans carte
+            L'achat se fait directement via Orange Money et Mobile Money, sans carte
             bancaire ni démarche compliquée.
           </p>
         </div>

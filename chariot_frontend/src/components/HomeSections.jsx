@@ -7,7 +7,7 @@ import "./HomeSections.css";
 export function StatsSection() {
   const stats = [
     { chiffre: "7", label: "Niveaux couverts — 1ère année à Terminale F4" },
-    { chiffre: "75%", label: "Lecture possible hors connexion après achat" },
+    // { chiffre: "75%", label: "Lecture possible hors connexion après achat" },
     { chiffre: "CEMAC", label: "Zone de vente couverte" },
     { chiffre: "OM & MoMo", label: "Paiement simple et local" },
   ];
@@ -58,7 +58,7 @@ export function AboutTeaser() {
 export function ServicesSection() {
   const services = [
     { icon: "fa-bolt-lightning", titre: "Achat rapide", texte: "Choisissez votre ouvrage et payez en quelques clics via Orange Money, sans friction." },
-    { icon: "fa-wifi", titre: "Lecture hors ligne", texte: "Une fois acheté, votre support reste disponible même quand la connexion manque." },
+    // { icon: "fa-wifi", titre: "Lecture hors ligne", texte: "Une fois acheté, votre support reste disponible même quand la connexion manque." },
     { icon: "fa-graduation-cap", titre: "Progression par niveau", texte: "Des supports pour vous suivre en classe d'examen, 4e année, Première et Terminale en Génie Civil" },
     { icon: "fa-building-columns", titre: "Contenus complets", texte: "Cours, méthodes, exercices et corrigés réunis dans un seul parcours de travail." },
   ];
@@ -171,6 +171,10 @@ export function TestimonialsSection() {
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showAll, setShowAll] = useState(false);
+
+  // Nombre de témoignages visibles avant de dérouler
+  const VISIBLE_COUNT = 3;
 
   // Validation rules
   const NAME_MIN = 2;
@@ -254,6 +258,8 @@ export function TestimonialsSection() {
 
   const remaining = MSG_MAX - (texte ? texte.length : 0);
 
+  const visibles = showAll ? temoignages : temoignages.slice(0, VISIBLE_COUNT);
+
   return (
     <section className="testimonials-section">
       <span className="eyebrow eyebrow-light">Témoignages</span>
@@ -263,7 +269,7 @@ export function TestimonialsSection() {
         {loading ? (
           <p>Chargement…</p>
         ) : (
-          temoignages.map((t, idx) => (
+          visibles.map((t, idx) => (
             <blockquote className="testimonial-card" key={t.id || t.nom + idx}>
               <p>"{t.message || t.texte || t.text}"</p>
               — {t.nom}
@@ -271,6 +277,19 @@ export function TestimonialsSection() {
           ))
         )}
       </div>
+
+      {!loading && temoignages.length > VISIBLE_COUNT && (
+        <button
+          type="button"
+          className="testimonials-toggle"
+          onClick={() => setShowAll((v) => !v)}
+          aria-expanded={showAll}
+        >
+          {showAll
+            ? "Réduire ▲"
+            : `Voir tous les témoignages (${temoignages.length}) ▼`}
+        </button>
+      )}
 
       <div className="testimonial-form dark">
         <h3>Laisser un témoignage</h3>
@@ -322,8 +341,8 @@ export function TestimonialsSection() {
 export function ProcessSection() {
   const etapes = [
     { n: "01", titre: "Choisissez votre niveau", texte: "Parcourez le catalogue classé par classe et filière." },
-    { n: "02", titre: "Achetez via Orange Money", texte: "Paiement rapide, directement depuis votre téléphone." },
-    { n: "03", titre: "Lisez, même hors-ligne", texte: "Retrouvez votre ouvrage dans « Ma bibliothèque », à tout moment." },
+    { n: "02", titre: "Achetez via OM & MOMO", texte: "Paiement rapide, directement depuis votre téléphone." },
+    { n: "03", titre: "Lisez et profitez des documents", texte: "Retrouvez votre ouvrage dans « Ma bibliothèque », à tout moment." },
   ];
   return (
     <section className="process-section">

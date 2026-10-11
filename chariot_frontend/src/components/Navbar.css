@@ -2,7 +2,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.1rem 2.5rem;
+  gap: 2rem;
+  padding: 1.1rem 2rem;
   background: rgba(15, 12, 9, 0.96);
   border-bottom: 3px solid var(--gold);
   color: #fff;
@@ -15,7 +16,7 @@
 
 .navbar-scrolled {
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
-  padding: 0.75rem 2.5rem;
+  padding: 0.75rem 2rem;
 }
 
 .navbar-logo {
@@ -27,6 +28,7 @@
   color: #fff;
   text-decoration: none;
   letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
 .navbar-logo-mark {
@@ -54,7 +56,9 @@
 .navbar-categories {
   display: flex;
   align-items: center;
-  gap: 1.9rem;
+  justify-content: center;
+  flex: 1;
+  gap: 2.4rem;
 }
 
 .navbar-dropdown {
@@ -71,6 +75,7 @@
   position: relative;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .navbar-dropdown-label::after {
@@ -132,7 +137,9 @@ a.navbar-dropdown-label:hover::after {
 .navbar-actions {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 1.8rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Debug role indicator (temporary) */
@@ -171,10 +178,10 @@ a.navbar-dropdown-label:hover::after {
 }
 
 .navbar-cta {
-  background: var(--safety);
+  background: var(--safety) !important;
   padding: 0.7rem 1.3rem;
   border-radius: 12px;
-  color: var(--navy-deep) !important;
+  color: #fff !important;
   font-weight: 800 !important;
   transition: background 0.2s ease, transform 0.15s ease;
   text-transform: uppercase;
@@ -182,8 +189,9 @@ a.navbar-dropdown-label:hover::after {
 }
 
 .navbar-cta:hover {
-  background: var(--safety-deep);
+  background: #fff !important;
   transform: translateY(-2px);
+  color: var(--safety) !important;
 }
 
 .navbar-burger {
@@ -307,7 +315,32 @@ a.navbar-dropdown-label:hover::after {
   color: #fff;
 }
 
-@media (max-width: 860px) {
+/* Écrans moyens (laptops) : on resserre un peu */
+@media (max-width: 1280px) {
+  .navbar {
+    gap: 1.2rem;
+    padding: 1rem 1.2rem;
+  }
+
+  .navbar-scrolled {
+    padding: 0.75rem 1.2rem;
+  }
+
+  .navbar-categories {
+    gap: 1.4rem;
+  }
+
+  .navbar-dropdown-label {
+    font-size: 0.8rem;
+  }
+
+  .navbar-actions {
+    gap: 1rem;
+  }
+}
+
+/* Menu burger activé plus tôt (avant 860px) */
+@media (max-width: 1100px) {
   .navbar {
     padding: 0.85rem 1rem;
     position: sticky;

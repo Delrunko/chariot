@@ -2,13 +2,23 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Pour les URLs signées Supabase : on ignore le token dans la clé de cache,
+// sinon chaque nouvelle URL signée est considérée comme un nouveau fichier.
+const ignoreTokenInCacheKey = {
+  cacheKeyWillBeUsed: async ({ request }) => {
+    const url = new URL(request.url)
+    url.search = ''
+    return url.href
+  },
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeManifest: true,
+      includeAssets: ['logo.png'],
       manifest: {
         name: 'EDS — Librairie technique en ligne',
         short_name: 'EDS',
@@ -19,50 +29,55 @@ export default defineConfig({
         display: 'standalone',
         background_color: '#f6f1e4',
         theme_color: '#171717',
+        // IMPORTANT : Chrome exige des icônes PNG 192x192 et 512x512
+        // (à placer dans le dossier public/)
         icons: [
-          {
-            src: '/logo.png',
-            sizes: 'any',
-            type: 'image/png',
-            purpose: 'any',
-          },
+          { src: '/pwa-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
+        cleanupOutdatedCaches: true,
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [
-          /^https?:\/\/[^/]*supabase\.co/,
-          /^\/api\//,
-          /\.(pdf|docx|xlsx|zip|mp4|webm)$/i
-        ],
-        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,woff2}'],
+        navigateFallbackDenylist: [/^\/api\//],
+        globPatterns: ['**/*.{js,css,html,png,jpg,jpeg,svg,ico,webp,woff2}'],
         runtimeCaching: [
+          // Données Supabase (livres, témoignages...) : réseau d'abord, cache si hors ligne
           {
-            urlPattern: ({ request }) => request.mode === 'navigate',
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith('.supabase.co') && url.pathname.startsWith('/rest/v1/'),
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'pages-cache',
-              networkTimeoutSeconds: 5,
-              expiration: { maxEntries: 50, maxAgeSeconds: 60 * 60 * 24 * 7 }
-            }
+              cacheName: 'supabase-api',
+              networkTimeoutSeconds: 4,
+              expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 * 14 },
+              cacheableResponse: { statuses: [200] },
+            },
           },
+          // Couvertures et fichiers (Storage Supabase) : cache d'abord
           {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\.(png|jpe?g|gif|svg|webp)$/.test(url.pathname),
+            urlPattern: ({ url }) =>
+              url.hostname.endsWith('.supabase.co') && url.pathname.startsWith('/storage/v1/'),
             handler: 'CacheFirst',
             options: {
-              cacheName: 'images-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 }
-            }
+              cacheName: 'supabase-files',
+              expiration: { maxEntries: 150, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              cacheableResponse: { statuses: [200] },
+              plugins: [ignoreTokenInCacheKey],
+            },
           },
+          // Polices et icônes externes (Font Awesome, Google Fonts...)
           {
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && /\.(js|css|woff2?)$/.test(url.pathname),
+            urlPattern: /^https:\/\/(cdnjs\.cloudflare\.com|fonts\.googleapis\.com|fonts\.gstatic\.com|use\.fontawesome\.com|kit\.fontawesome\.com|ka-f\.fontawesome\.com)\/.*/,
             handler: 'StaleWhileRevalidate',
             options: {
-              cacheName: 'assets-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 * 24 * 30 }
-            }
-          }
-        ]
+              cacheName: 'external-assets',
+              expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       devOptions: {
         enabled: false,

@@ -1,10 +1,36 @@
+/* ===== Mise en page commune : fonds pleine largeur, contenu centré ===== */
+:root {
+  --content-w: 1200px;
+  --section-x: max(2.5rem, calc((100% - var(--content-w)) / 2));
+}
+
+.stats-section,
+.about-teaser,
+.services-section,
+.domain-modalities-section,
+.whyus-section,
+.gallery-section,
+.immersive-section,
+.testimonials-section,
+.process-section,
+.cta-section {
+  box-sizing: border-box;
+  width: 100%;
+  margin: 0;
+}
+
 /* ===== Chiffres / Confiance ===== */
 .stats-section {
-  background: var(--navy-deep);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1px;
   background-color: rgba(255, 255, 255, 0.08);
+  padding: 0;
+  max-width: var(--content-w);
+  margin: 0 auto;
+  /* étend le fond navy sur toute la largeur de l'écran */
+  box-shadow: 0 0 0 100vmax var(--navy-deep);
+  clip-path: inset(0 -100vmax);
 }
 
 .stat-item {
@@ -30,11 +56,11 @@
 
 /* ===== À propos teaser ===== */
 .about-teaser {
-  padding: 4rem 2.5rem 3rem;
+  padding: 4rem var(--section-x) 3rem;
 }
 
 .about-teaser-inner {
-  max-width: 1180px;
+  max-width: var(--content-w);
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1.4fr 0.9fr;
@@ -102,14 +128,12 @@
 /* ===== Services ===== */
 .services-section {
   background: var(--ivory);
-  padding: 4rem 2.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
 .services-section h2 {
-  margin: 0.6rem 0 2rem;
+  margin: 0.4rem 0 2rem;
 }
 
 .services-grid {
@@ -169,7 +193,7 @@
 /* ===== Domaines / modalités ===== */
 .domain-modalities-section {
   background: linear-gradient(180deg, #f6f1e8 0%, #fff 100%);
-  padding: 4rem 2.5rem;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
@@ -178,7 +202,6 @@
 }
 
 .domain-modalities-grid {
-  max-width: 1200px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -234,7 +257,7 @@
 .whyus-section {
   background: var(--navy);
   color: #fff;
-  padding: 4rem 2.5rem;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
@@ -274,9 +297,7 @@
 
 /* ===== Galerie / Réalisations ===== */
 .gallery-section {
-  padding: 4rem 2.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
@@ -326,7 +347,7 @@
     linear-gradient(180deg, rgba(15, 12, 9, 0.88), rgba(15, 12, 9, 0.94)),
     repeating-linear-gradient(135deg, var(--gold) 0 2px, transparent 2px 40px);
   color: #fff;
-  padding: 5.5rem 2.5rem;
+  padding: 5.5rem var(--section-x);
   text-align: center;
 }
 
@@ -349,9 +370,7 @@
 
 /* ===== Témoignages ===== */
 .testimonials-section {
-  padding: 4rem 2.5rem;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
@@ -388,13 +407,35 @@
   font-style: normal;
 }
 
-/* ===== Testimonial form inputs (design only these fields) ===== */
+/* ===== Bouton dérouler les témoignages ===== */
+.testimonials-toggle {
+  display: block;
+  margin: 1.5rem auto 0;
+  padding: 0.7rem 1.4rem;
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.testimonials-toggle:hover {
+  background: var(--gold);
+  color: #fff;
+}
+
+/* ===== Formulaire de témoignage ===== */
 .testimonial-form {
+  box-sizing: border-box;
+  width: 100%;
   max-width: 520px;
   margin: 1.25rem auto 0;
   text-align: left;
   background: var(--navy);
-  padding: 0.9rem 0.9rem;
+  padding: 0.9rem;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-card);
   color: #fff;
@@ -474,24 +515,17 @@
   padding: 0.6rem 0.9rem;
 }
 
-/* Mobile adjustments: keep inputs large and touch-friendly */
 @media (max-width: 520px) {
   .testimonial-form {
-    margin: 1rem 0.75rem 0;
+    margin: 1rem auto 0;
     padding: 0.8rem;
-  }
-  .testimonial-form input,
-  .testimonial-form textarea,
-  .testimonial-form select {
-    padding: 0.6rem 0.75rem;
-    font-size: 0.98rem;
   }
 }
 
 /* ===== Notre processus ===== */
 .process-section {
   background: var(--ivory);
-  padding: 4rem 2.5rem;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
@@ -534,7 +568,7 @@
 .cta-section {
   background: var(--gold);
   color: #fff;
-  padding: 4rem 2.5rem;
+  padding: 4rem var(--section-x);
   text-align: center;
 }
 
@@ -556,12 +590,8 @@
   background: var(--navy);
 }
 
+/* ===== Responsive ===== */
 @media (max-width: 860px) {
-  .about-teaser {
-    padding-left: 1.25rem;
-    padding-right: 1.25rem;
-  }
-
   .about-teaser-inner {
     grid-template-columns: 1fr;
   }
@@ -579,53 +609,31 @@
   .process-grid { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 520px) {
+@media (max-width: 700px) {
+  .services-grid,
   .domain-modalities-grid { grid-template-columns: 1fr; }
+
+  .about-teaser {
+    padding: 2.5rem 1rem 2rem;
+  }
+
+  .services-section,
+  .domain-modalities-section,
+  .whyus-section,
+  .gallery-section,
+  .testimonials-section,
+  .process-section,
+  .immersive-section,
+  .cta-section {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 
 @media (max-width: 560px) {
   .stats-section,
-  .services-grid,
   .gallery-grid {
     grid-template-columns: 1fr;
-  }
-
-  .stats-section {
-    background: var(--navy-deep);
-  }
-
-  .stat-item,
-  .service-card,
-  .gallery-item,
-  .testimonial-card,
-  .process-item {
-    width: 100%;
-  }
-
-  .services-section,
-  .gallery-section,
-  .testimonials-section,
-  .process-section,
-  .cta-section,
-  .whyus-section,
-  .immersive-section {
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
-
-  .services-section,
-  .gallery-section,
-  .testimonials-section,
-  .process-section {
-    text-align: left;
-  }
-
-  .services-section h2,
-  .gallery-section h2,
-  .testimonials-section h2,
-  .process-section h2,
-  .whyus-section h2 {
-    text-align: center;
   }
 
   .whyus-item {
