@@ -1625,7 +1625,7 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                         <strong>Dernier ajouté</strong>
                         <div className="admin-latest-row">
                           {latestAddedService.couverture && (
-                            <img src={latestAddedService.couverture} alt={latestAddedService.titre} style={{width:80, height:60, objectFit:'cover', borderRadius:6, marginRight:10}} />
+                            <img src={latestAddedService.couverture || "/logo.png"} alt={latestAddedService.titre} style={{width:80, height:60, objectFit:'cover', borderRadius:6, marginRight:10}} />
                           )}
                           <div>
                             <div style={{fontWeight:700}}>{latestAddedService.titre}</div>
@@ -1754,7 +1754,7 @@ function AdminDashboardContent({ user, session, signOut, acceptAuthenticatedProf
                             <strong>Dernier ajouté</strong>
                             <div className="admin-latest-row">
                               {eloquenceLatest.couverture && (
-                                <img src={eloquenceLatest.couverture} alt={eloquenceLatest.titre} style={{width:80, height:60, objectFit:'cover', borderRadius:6, marginRight:10}} />
+                                <img src={eloquenceLatest.couverture || "/logo.png"} alt={eloquenceLatest.titre} style={{width:80, height:60, objectFit:'cover', borderRadius:6, marginRight:10}} />
                               )}
                               <div>
                                 <div style={{fontWeight:700}}>{eloquenceLatest.titre}</div>

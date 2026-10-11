@@ -1,13 +1,16 @@
 import { Link } from "react-router-dom";
 import "./BookCard.css";
 
+const FALLBACK_COVER = "/logo.png";
+
 export default function BookCard({ livre, categoryView = false }) {
   const verrouille = !livre.deja_achete;
+  const coverSrc = livre.couverture || FALLBACK_COVER;
 
   return (
     <Link to={`/livre/${livre.slug}`} className="book-card">
       <div className="book-card-cover">
-        <img src={livre.couverture} alt={livre.titre} />
+        <img src={coverSrc} alt={livre.titre} />
         {verrouille ? (
           <span className="book-card-badge">🔒 À acheter</span>
         ) : (

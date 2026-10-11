@@ -526,7 +526,7 @@ export default function CategoryPage() {
                         {it.couverture ? (
                           <img src={it.couverture} alt="" />
                         ) : (
-                          <div className="category-selected-thumb-empty" />
+                          <img src="/logo.png" alt="" />
                         )}
                       </div>
                       <div className="title category-selected-item-title">{it.titre}</div>

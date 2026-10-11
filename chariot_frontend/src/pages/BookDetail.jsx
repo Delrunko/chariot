@@ -156,7 +156,7 @@ export default function BookDetail() {
         {/* Section Miniatures (À adapter si livre.images existe) */}
         <div className="thumbnails">
           <button className="thumb-btn thumb-active">
-            <img src={livre.couverture} alt="Couverture principale" className="thumb-img" />
+            <img src={livre.couverture || "/logo.png"} alt="Couverture principale" className="thumb-img" />
           </button>
           {/* Exemple si vous avez d'autres images : 
               {livre.images?.map((img, index) => (

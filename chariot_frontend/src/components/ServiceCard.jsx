@@ -1,13 +1,16 @@
 import { Link } from "react-router-dom";
 import "./ServiceCard.css";
 
+const FALLBACK_COVER = "/logo.png";
+
 export default function ServiceCard({ livre, achete, categoryView = false }) {
   const verrouille = !achete;
+  const coverSrc = livre.couverture || FALLBACK_COVER;
 
   return (
     <Link to={`/service/${livre.slug}`} className="service-card">
       <div className="service-card-cover">
-        <img src={livre.couverture} alt={livre.titre} />
+        <img src={coverSrc} alt={livre.titre} />
         {verrouille ? (
           <span className="service-card-badge">🔒 À acheter</span>
         ) : (

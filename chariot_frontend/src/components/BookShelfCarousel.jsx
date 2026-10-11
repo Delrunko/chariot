@@ -1,5 +1,7 @@
 import "./BookShelfCarousel.css";
 
+const FALLBACK_COVER = "/logo.png";
+
 /**
  * Carrousel "coverflow" en boucle infinie parfaite : la liste est
  * triplée pour garantir qu'on ne voit jamais la fin, quel que soit le
@@ -21,7 +23,7 @@ export default function BookShelfCarousel({ livres }) {
         <div className="coverflow-track" style={{ animationDuration: `${duree}s` }}>
           {suite.map((livre, i) => (
             <div className="coverflow-book" key={`${livre.id}-${i}`}>
-              <img src={livre.couverture} alt={livre.titre} />
+              <img src={livre.couverture || FALLBACK_COVER} alt={livre.titre} />
               <div className="coverflow-sheen" />
             </div>
           ))}

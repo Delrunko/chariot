@@ -138,7 +138,7 @@ export function GallerySection({ livres }) {
       <div className="gallery-grid">
         {livres.slice(0, 8).map((livre) => (
           <Link to={`/livre/${livre.slug}`} className="gallery-item" key={livre.id}>
-            <img src={livre.couverture} alt={livre.titre} />
+            <img src={livre.couverture || "/logo.png"} alt={livre.titre} />
             <span className="gallery-item-title">{livre.titre}</span>
           </Link>
         ))}
