@@ -132,7 +132,7 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
+  background: var(--white);
   color: var(--navy);
   border: 2px solid var(--navy);
   padding: 0.7rem 1.4rem;

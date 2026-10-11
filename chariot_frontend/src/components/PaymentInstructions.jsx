@@ -43,6 +43,7 @@ export default function PaymentInstructions({ amount }) {
       <p className="payment-instructions-copy">
         Depuis votre téléphone, effectuez un dépôt à l'un des numéros de l'administrateur ci-dessous,
         du montant exact de votre commande. Votre accès sera activé après vérification du paiement.
+        Apres depôt, veuillez envoyer la capture du depôt via Whatsapp au <a href="https://wa.me/237656877046" target="_blank" rel="noopener noreferrer">+237 656 877 046</a> pour activer votre accès.
       </p>
 
       {PROVIDERS.map((provider) => {

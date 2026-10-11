@@ -87,7 +87,7 @@ export default function Home() {
             <ul className="home-hero-trust">
               <li>7 niveaux couverts</li>
               <li>Lecture hors ligne</li>
-              <li>Paiement Orange Money</li>
+              <li>Paiement OM & MoMo</li>
             </ul>
           </div>
 

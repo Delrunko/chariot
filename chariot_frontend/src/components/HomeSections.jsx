@@ -7,9 +7,9 @@ import "./HomeSections.css";
 export function StatsSection() {
   const stats = [
     { chiffre: "7", label: "Niveaux couverts — 1ère année à Terminale F4" },
-    { chiffre: "100%", label: "Lecture possible hors connexion après achat" },
+    { chiffre: "75%", label: "Lecture possible hors connexion après achat" },
     { chiffre: "CEMAC", label: "Zone de vente couverte" },
-    { chiffre: "Orange Money", label: "Paiement simple et local" },
+    { chiffre: "OM & MoMo", label: "Paiement simple et local" },
   ];
   return (
     <section className="stats-section">

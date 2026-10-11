@@ -31,8 +31,9 @@ export default function Footer() {
         </div>
 
         <div className="footer-col">
-          <h4>Paiement</h4>
-          <p className="footer-payment">Orange Money accepté</p>
+          <h4>Paiement accepté</h4>
+          <p className="footer-payment">Orange Money </p>
+          <p className="footer-payment">Mobile Money </p>
         </div>
       </div>
 
