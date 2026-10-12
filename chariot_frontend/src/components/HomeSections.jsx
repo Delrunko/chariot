@@ -58,7 +58,7 @@ export function AboutTeaser() {
 export function ServicesSection() {
   const services = [
     { icon: "fa-bolt-lightning", titre: "Achat rapide", texte: "Choisissez votre ouvrage et payez en quelques clics via Orange Money, sans friction." },
-    // { icon: "fa-wifi", titre: "Lecture hors ligne", texte: "Une fois acheté, votre support reste disponible même quand la connexion manque." },
+    // { icon: "fa-wifi", titre: "Lecture à tout moment", texte: "Une fois acheté, votre support reste disponible même quand la connexion manque." },
     { icon: "fa-graduation-cap", titre: "Progression par niveau", texte: "Des supports pour vous suivre en classe d'examen, 4e année, Première et Terminale en Génie Civil" },
     { icon: "fa-building-columns", titre: "Contenus complets", texte: "Cours, méthodes, exercices et corrigés réunis dans un seul parcours de travail." },
   ];
@@ -110,7 +110,7 @@ export function WhyUsSection() {
   const points = [
     { titre: "Une pédagogie de terrain", texte: "Conçue par un enseignant-ingénieur qui connaît les vrais besoins du métier et de l’examen." },
     { titre: "Des supports actionnables", texte: "Chaque ouvrage aide à comprendre, pratiquer et retenir les notions essentielles sans perdre de temps." },
-    { titre: "Un accès pensé pour la réalité locale", texte: "Paiement simple, lecture accessible hors ligne, et une expérience adaptée à des usages mobiles et fiables." },
+    { titre: "Un acchors ligneès pensé pour la réalité locale", texte: "Paiement simple, lecture accessible , et une expérience adaptée à des usages mobiles et fiables." },
   ];
   return (
     <section className="whyus-section">

@@ -66,7 +66,7 @@ export default function ReaderModal({ livreId, serviceId = null, onClose, open =
         ownedUrlRef.current = url;
         setSrc(url);
         setErreur("");
-        setStatusMessage("Document ouvert depuis cet appareil, sans connexion.");
+        setStatusMessage("Document ouvert depuis cet appareil, à tout moment.");
         setChargement(false);
         return true;
       } catch (error) {

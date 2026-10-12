@@ -180,7 +180,7 @@ export default function Catalog() {
           </div>
           <div className="catalog-stat">
             <span className="catalog-stat-value">100%</span>
-            <span className="catalog-stat-label">hors ligne</span>
+            <span className="catalog-stat-label">Réussite</span>
           </div>
         </div>
       </header>

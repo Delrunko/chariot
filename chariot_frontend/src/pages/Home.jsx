@@ -76,7 +76,7 @@ export default function Home() {
               Des supports de cours et d’examens pour <span className="highlight">réussir en Maçonnerie &amp; Bâtiment</span>
             </h1>
             <p>
-              Retrouvez les outils pédagogiques qui vous aident à apprendre, réviser et progresser — même sans connexion.
+              Retrouvez les outils pédagogiques qui vous aident à apprendre, réviser et progresser — peu importe ou vous êtes.
             </p>
 
             <div className="home-hero-actions">
@@ -86,7 +86,7 @@ export default function Home() {
 
             <ul className="home-hero-trust">
               <li>7 niveaux couverts</li>
-              <li>Lecture hors ligne</li>
+              <li>Lecture peu importe ou vous êtes</li>
               <li>Paiement OM & MoMo</li>
             </ul>
           </div>
